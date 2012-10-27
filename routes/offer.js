@@ -23,10 +23,17 @@ exports.get = function(req, res){
         return res.send(404, {error: 'field not found'});
       } else {
         res.set('Content-Type', 'text/plain');
+        if(offer.hasOwnProperty(ANSWER_SDP)) {
+          delete offers[id];
+        }
         return res.send(200, offer[field]);
       }
-    }
-    return res.send(200, offers[id]);
+    } else {
+      if(offer.hasOwnProperty(ANSWER_SDP)) {
+        delete offers[id];
+      }
+      return res.send(200, offers[id]);
+    }    
   }
 };
 
@@ -41,13 +48,15 @@ exports.post = function(req, res) {
     var id = "B4140ED7-5529-422C-BE57-E5727B25E7D6"; //guid();
     offers[id] = {};
     offers[id][OFFER_SDP] = body[OFFER_SDP];
-    console.log(offers);
     return res.send(201, {id: id});
   } else {
     if(!offers.hasOwnProperty(id)) {
       return res.send(404, {error: 'offer not found'});
     }
     var offer = offers[id];
+    if(offer.hasOwnProperty(ANSWER_SDP)) {
+      return res.send(400, {error: 'offer already answered'});
+    }
     if(!field) {
       var fields = Object.keys(body);
       fields.forEach(function(field) {
@@ -58,15 +67,22 @@ exports.post = function(req, res) {
       fields.forEach(function(field) {
         offer[field] = body[field];
       });
-      console.log(offers);
       return res.send(200, 'ok');
     } else {
       if(offer.hasOwnProperty(field)) {
         return res.send(400, {error: 'field already exists'});
       }
       offer[field] = body;
-      console.log(offers);
       return res.send(200, 'ok');
     }
   }
 };
+
+exports.delete = function(req, res) {
+  var id = req.params.id;
+  if(!id) {
+    return res.send(404, {error: 'offer not found'});
+  }
+  delete offers[id];
+  return res.send(200, 'ok');
+}
