@@ -25,23 +25,24 @@ exports.get = function(req, res){
   } else {
     var offer = offers[id];
     if(field) {
-      if(!offer.hasOwnProperty(field)) {
-        console.log(field, req.headers['accept'], watchers.hasOwnProperty(offer.id));
-        if('answer' === field && 'text/event-stream' === req.headers['accept'] && !watchers.hasOwnProperty(offer.id)) {
-          res.writeHead(200, {
-            'content-type': 'text/event-stream',
-            'cache-control': 'no-cache',
-            'connection': 'keep-alive'
-          });
-          res.write('\n');
-          watchers[offer.id] = res;
-          res.on('close', function() {
-            delete watchers[offer.id];
-          });
-          return;
+      if('answer' === field && 'text/event-stream' === req.headers['accept'] && !watchers.hasOwnProperty(offer.id)) {
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          'connection': 'keep-alive'
+        });      
+        if(offer.hasOwnProperty('answer')) {
+          res.write('data: ' + JSON.stringify({value: offer['answer']}) + '\n\n');
         } else {
+          watchers[id] = res;
+          res.on('close', function() {
+            delete watchers[id];
+          });
+        }
+        return;
+      }
+      if(!offer.hasOwnProperty(field)) {
           return res.send(404, {error: 'field not found'});
-        }        
       } else {
         if(offer.hasOwnProperty('answer')) {
           delete offers[id];
@@ -65,7 +66,7 @@ exports.post = function(req, res) {
     if(!body.hasOwnProperty('offer')) {
       return res.send(400, 'missing required field');
     }
-    var id = "AD878B69-5264-40AB-806C-E5584638FD72";//guid();
+    var id = guid();
     var offer = offers[id] = {};
     var fields = Object.keys(body);
     fields.forEach(function(field) {
@@ -97,9 +98,9 @@ exports.post = function(req, res) {
       });
       fields.forEach(function(field) {
         offer[field] = body[field];
-      });
-      if(_(fields).contains('answer') && watchers.hasOwnProperty(offer.id)) {
-        var watcher = watchers[offer.id];
+      });      
+      if(_(fields).contains('answer') && watchers.hasOwnProperty(id)) {
+        var watcher = watchers[id];
         watcher.write('data: ' + JSON.stringify({value: offer['answer']}) + '\n\n');
       }
       return res.send(200);
@@ -110,9 +111,9 @@ exports.post = function(req, res) {
       if(offer.hasOwnProperty(field)) {
         return res.send(400, {error: 'field already exists'});
       }
-      offer[field] = body;
-      if(_(fields).contains('answer') && watchers.hasOwnProperty(offer.id)) {
-        var watcher = watchers[offer.id];
+      offer[field] = body['value'];
+      if('answer' === field && watchers.hasOwnProperty(id)) {
+        var watcher = watchers[id];
         watcher.write('data: ' + JSON.stringify({value: offer['answer']}) + '\n\n');       
       }
       return res.send(200);
