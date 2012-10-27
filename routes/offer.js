@@ -45,10 +45,11 @@ exports.post = function(req, res) {
     if(!body.hasOwnProperty(OFFER_SDP)) {
       return res.send(400, 'missing required field');
     }
-    var id = "B4140ED7-5529-422C-BE57-E5727B25E7D6"; //guid();
+    var id = guid();
     offers[id] = {};
     offers[id][OFFER_SDP] = body[OFFER_SDP];
-    return res.send(201, {id: id});
+    res.set('Content-Type', 'text/plain');
+    return res.send(201, id);
   } else {
     if(!offers.hasOwnProperty(id)) {
       return res.send(404, {error: 'offer not found'});
