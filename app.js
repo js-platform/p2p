@@ -19,6 +19,16 @@ app.configure(function(){
   app.use(express.favicon());
   app.use(express.logger('dev'));
   app.use(express.bodyParser());
+  app.use(function(req, res, next){
+    if (req.is('text/*')) {
+      req.text = '';
+      req.setEncoding('utf8');
+      req.on('data', function(chunk){ req.text += chunk });
+      req.on('end', next);
+    } else {
+      next();
+    }
+  });
   app.use(express.methodOverride());
   app.use(app.router);
   app.use(express.static(path.join(__dirname, 'public')));
@@ -29,8 +39,8 @@ app.configure('development', function(){
 });
 
 app.get('/', routes.index);
-app.post('/offer/create', offer.create);
-app.get('/offer/read/:id', offer.read);
+app.post('/offer/:id?/:field?', offer.post);
+app.get('/offer/:id?/:field?', offer.get);
 // app.get('/users', user.list);
 
 http.createServer(app).listen(app.get('port'), function(){

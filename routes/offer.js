@@ -1,3 +1,6 @@
+var OFFER_SDP = "offer_sdp";
+var ANSWER_SDP = "answer_sdp";
+
 var offers = {};
 
 function guid() {
@@ -7,21 +10,63 @@ function guid() {
   }).toUpperCase();
 }
 
-exports.read = function(req, res){
+exports.get = function(req, res){
   var id = req.params.id;
-  if(offers.hasOwnProperty(id)) {
-    return res.send(200, {offer: offers[id]});
-  } else {
+  var field = req.params.field;
+  console.log(id, field);
+  if(!offers.hasOwnProperty(id)) {
     return res.send(404, {error: 'offer not found'});
+  } else {
+    var offer = offers[id];
+    if(field) {
+      if(!offer.hasOwnProperty(field)) {
+        return res.send(404, {error: 'field not found'});
+      } else {
+        res.set('Content-Type', 'text/plain');
+        return res.send(200, offer[field]);
+      }
+    }
+    return res.send(200, offers[id]);
   }
 };
 
-exports.create = function(req, res) {
+exports.post = function(req, res) {
+  var id = req.params.id;
+  var field = req.params.field;
   var body = req.body;
-  if(!body.hasOwnProperty('sdp')) {
-    return res.send(400, 'missing field');
+  if(!id) {
+    if(!body.hasOwnProperty(OFFER_SDP)) {
+      return res.send(400, 'missing required field');
+    }
+    var id = "B4140ED7-5529-422C-BE57-E5727B25E7D6"; //guid();
+    offers[id] = {};
+    offers[id][OFFER_SDP] = body[OFFER_SDP];
+    console.log(offers);
+    return res.send(201, {id: id});
+  } else {
+    if(!offers.hasOwnProperty(id)) {
+      return res.send(404, {error: 'offer not found'});
+    }
+    var offer = offers[id];
+    if(!field) {
+      var fields = Object.keys(body);
+      fields.forEach(function(field) {
+        if(offer.hasOwnProperty(field)) {
+          return res.send(400, {error: 'field already exists'});
+        }
+      });
+      fields.forEach(function(field) {
+        offer[field] = body[field];
+      });
+      console.log(offers);
+      return res.send(200, 'ok');
+    } else {
+      if(offer.hasOwnProperty(field)) {
+        return res.send(400, {error: 'field already exists'});
+      }
+      offer[field] = body;
+      console.log(offers);
+      return res.send(200, 'ok');
+    }
   }
-  var id = guid();
-  offers[id] = body.sdp;
-  return res.send(201, {id: id});
 };
