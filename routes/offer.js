@@ -1,5 +1,11 @@
-var OFFER_SDP = "offer_sdp";
-var ANSWER_SDP = "answer_sdp";
+var _ = require('lodash');
+
+var FIELDS = [
+  'offer_sdp',
+  'answer_sdp',
+  'metadata',
+  'expires'
+];
 
 var offers = {};
 
@@ -23,13 +29,13 @@ exports.get = function(req, res){
         return res.send(404, {error: 'field not found'});
       } else {
         res.set('Content-Type', 'text/plain');
-        if(offer.hasOwnProperty(ANSWER_SDP)) {
+        if(offer.hasOwnProperty('answer_sdp')) {
           delete offers[id];
         }
         return res.send(200, offer[field]);
       }
     } else {
-      if(offer.hasOwnProperty(ANSWER_SDP)) {
+      if(offer.hasOwnProperty('answer_sdp')) {
         delete offers[id];
       }
       return res.send(200, offers[id]);
@@ -42,12 +48,12 @@ exports.post = function(req, res) {
   var field = req.params.field;
   var body = req.body;
   if(!id) {
-    if(!body.hasOwnProperty(OFFER_SDP)) {
+    if(!body.hasOwnProperty('offer_sdp')) {
       return res.send(400, 'missing required field');
     }
     var id = guid();
     offers[id] = {};
-    offers[id][OFFER_SDP] = body[OFFER_SDP];
+    offers[id]['offer_sdp'] = body['offer_sdp'];
     res.set('Content-Type', 'text/plain');
     return res.send(201, id);
   } else {
@@ -55,12 +61,15 @@ exports.post = function(req, res) {
       return res.send(404, {error: 'offer not found'});
     }
     var offer = offers[id];
-    if(offer.hasOwnProperty(ANSWER_SDP)) {
+    if(offer.hasOwnProperty('answer_sdp')) {
       return res.send(400, {error: 'offer already answered'});
     }
     if(!field) {
       var fields = Object.keys(body);
       fields.forEach(function(field) {
+        if(!_(FIELDS).contains(field)) {
+          return res.send(400, {error: 'invalid field'});
+        }
         if(offer.hasOwnProperty(field)) {
           return res.send(400, {error: 'field already exists'});
         }
@@ -70,6 +79,9 @@ exports.post = function(req, res) {
       });
       return res.send(200, 'ok');
     } else {
+      if(!_(FIELDS).contains(field)) {
+        return res.send(400, {error: 'invalid field'});
+      }
       if(offer.hasOwnProperty(field)) {
         return res.send(400, {error: 'field already exists'});
       }
