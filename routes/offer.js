@@ -19,7 +19,6 @@ function guid() {
 exports.get = function(req, res){
   var id = req.params.id;
   var field = req.params.field;
-  console.log(id, field);
   if(!offers.hasOwnProperty(id)) {
     return res.send(404, {error: 'offer not found'});
   } else {
@@ -28,17 +27,16 @@ exports.get = function(req, res){
       if(!offer.hasOwnProperty(field)) {
         return res.send(404, {error: 'field not found'});
       } else {
-        res.set('Content-Type', 'text/plain');
         if(offer.hasOwnProperty('answer_sdp')) {
           delete offers[id];
         }
-        return res.send(200, offer[field]);
+        return res.send(200, {value: offer[field]});
       }
     } else {
       if(offer.hasOwnProperty('answer_sdp')) {
         delete offers[id];
       }
-      return res.send(200, offers[id]);
+      return res.send(200, offer);
     }    
   }
 };
@@ -52,10 +50,17 @@ exports.post = function(req, res) {
       return res.send(400, 'missing required field');
     }
     var id = guid();
-    offers[id] = {};
-    offers[id]['offer_sdp'] = body['offer_sdp'];
-    res.set('Content-Type', 'text/plain');
-    return res.send(201, id);
+    var offer = offers[id] = {};
+    var fields = Object.keys(body);
+    fields.forEach(function(field) {
+      if(!_(FIELDS).contains(field)) {
+        return res.send(400, {error: 'invalid field'});
+      }
+    });
+    fields.forEach(function(field) {
+      offer[field] = body[field];
+    });
+    return res.send(201, {id: id});
   } else {
     if(!offers.hasOwnProperty(id)) {
       return res.send(404, {error: 'offer not found'});
@@ -77,7 +82,7 @@ exports.post = function(req, res) {
       fields.forEach(function(field) {
         offer[field] = body[field];
       });
-      return res.send(200, 'ok');
+      return res.send(200);
     } else {
       if(!_(FIELDS).contains(field)) {
         return res.send(400, {error: 'invalid field'});
@@ -86,7 +91,7 @@ exports.post = function(req, res) {
         return res.send(400, {error: 'field already exists'});
       }
       offer[field] = body;
-      return res.send(200, 'ok');
+      return res.send(200);
     }
   }
 };
@@ -97,5 +102,5 @@ exports.delete = function(req, res) {
     return res.send(404, {error: 'offer not found'});
   }
   delete offers[id];
-  return res.send(200, 'ok');
+  return res.send(200);
 }
