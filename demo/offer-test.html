@@ -12,7 +12,7 @@
 try {
   var Offer = WebRTCBrokerClient.Offer;
   var Answer = WebRTCBrokerClient.Answer;
-  var offer = new Offer("http://localhost:3000");
+  var offer = new Offer("http://webrtc-broker.herokuapp.com");
   var answer;
   offer.onpending = function(url) {
     document.getElementById('stdout').innerHTML = url;
