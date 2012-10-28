@@ -1,4 +1,4 @@
-var _ = require('lodash');
+var _ = require('underscore');
 
 var FIELDS = [
   'offer',
@@ -70,7 +70,7 @@ exports.post = function(req, res) {
     var offer = offers[id] = {};
     var fields = Object.keys(body);
     fields.forEach(function(field) {
-      if(!_(FIELDS).contains(field)) {
+      if(!_.contains(FIELDS, field)) {
         return res.send(400, {error: 'invalid field'});
       }
     });
@@ -89,7 +89,7 @@ exports.post = function(req, res) {
     if(!field) {
       var fields = Object.keys(body);
       fields.forEach(function(field) {
-        if(!_(FIELDS).contains(field)) {
+        if(!_.contains(FIELDS, field)) {
           return res.send(400, {error: 'invalid field'});
         }
         if(offer.hasOwnProperty(field)) {
