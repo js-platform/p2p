@@ -7,52 +7,5 @@
   <div id="stdout"></div>
 </body>
 <script src="../client/webrtc-broker-client.js"></script>
-<script>
-
-var broker = "http://webrtc-broker.herokuapp.com";
-try {
-  var id = null;
-  if (window.location.search) {
-    // Given an ID, answer the offer.
-    var params = window.location.search.substring(1).split("&");
-    for (var i=0; i<params.length; i++) {
-      if (params[i].match("^id=")) {
-        id = params[i].substring(3);
-      }
-    }
-  }
-  if (id) {
-    document.getElementById('stdout').innerHTML = "Answering offer...";
-    var Answer = WebRTCBrokerClient.Answer;
-    var answer = new Answer(broker + "/offer/" + id);
-    answer.oncomplete = function(connection) {
-      console.log("answer connection");
-      document.getElementById('stdout').innerHTML = "Connected!";
-    };
-    answer.onerror = function(e) {
-      console.error(e);
-      document.getElementById('stdout').innerHTML = "Error connecting. Is this a valid URL?";
-    };
-  } else {
-    // New session, make an offer.
-    var Offer = WebRTCBrokerClient.Offer;
-    var offer = new Offer(broker);
-    offer.onpending = function(url) {
-      document.getElementById('stdout').innerHTML = "Offer sent. Load the current URL in a new tab.";
-      console.log("Made Offer: " + url);
-      history.pushState({}, "", "?id=" + offer.id);
-    };
-    offer.oncomplete = function(connection) {
-      console.log("offer connection");
-      document.getElementById('stdout').innerHTML = "Connected!";
-    };
-    offer.onerror = function(e) {
-      console.error(e);
-    }
-  }
-} catch(e) {
-  console.error(e);
-}
-
-</script>
+<script src="demo.js"></script>
 </html>
