@@ -17,11 +17,11 @@ var conn = null;
 if (id) {
   // Connect to an existing connection.
   console.log("Connecting to " + id);
-  conn = new WebRTCDataChannelClient.DataChannelConnection(null, id);
+  conn = new WebRTCPeer.DataPeer(null, id);
 } else {
   // Initiate a connection.
   console.log("Creating new offer");
-  conn = new WebRTCDataChannelClient.DataChannelConnection();
+  conn = new WebRTCPeer.DataPeer();
   conn.onoffercreated = function(url, offer_id) {
     log("Made offer");
     console.log("Made offer: " + url);

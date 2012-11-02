@@ -13,7 +13,7 @@ try {
   }
   if (id) {
     document.getElementById('stdout').innerHTML = "Answering offer...";
-    var Answer = WebRTCBrokerClient.Answer;
+    var Answer = WebRTCPeer.Answer;
     var answer = new Answer(broker + "/offer/" + id);
     answer.oncomplete = function(pc) {
       console.log("answer connection");
@@ -40,7 +40,7 @@ try {
     };
   } else {
     // New session, make an offer.
-    var Offer = WebRTCBrokerClient.Offer;
+    var Offer = WebRTCPeer.Offer;
     var offer = new Offer(broker);
     offer.onpending = function(url) {
       document.getElementById('stdout').innerHTML = "Offer sent. Load the current URL in a new tab.";
