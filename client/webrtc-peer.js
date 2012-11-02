@@ -155,6 +155,7 @@ define(['module'], function(module) {
   // onreliablemessage: Called when data arrives on the reliable channel.
   // onunreliablemessage: Called when data arrives on the unreliable channel.
   //TODO: support closing connection, handle closed events.
+  var default_broker = "http://webrtc-broker.herokuapp.com";
   function DataPeer(broker, offer_id) {
     this.connected = false;
     this.onoffercreated = null;
