@@ -1,6 +1,12 @@
 (function(define, global) { 'use strict';
 define(['module'], function(module) {
 
+  function callback(thing, method, args) {
+    if(method in thing && 'function' === typeof thing[method]) {
+      thing[method].apply(thing, args);
+    }
+  }
+
   function Offer(url, optMetadata, optExpires) {
     var offer = this;
     this.onpending = null;
