@@ -68,9 +68,7 @@ define(['module'], function(module) {
         };
         xhr.send(JSON.stringify({offer: rtc_offer.sdp}));
       },
-                           function(err) { fail(err); },
-                           //XXX: constraints should be optional
-                           {mandatory: {}, optional: []});
+                           function(err) { fail(err); });
     }, function(err) { fail(err); });
   }
 
@@ -130,9 +128,7 @@ define(['module'], function(module) {
                 };
                 postXhr.send(JSON.stringify({value: rtc_answer.sdp}));
               }, function(err) { fail(err); });
-            }, function(err) { fail(err); },
-                                   //XXX: constraints should be optional
-                                   {mandatory: {}, optional: []}, false);
+            }, function(err) { fail(err); });
           },
                                          function(err) { fail(err); });
         }, function(err) { fail(err); });
