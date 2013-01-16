@@ -1,0 +1,22 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+</body>
+<script>
+
+var header = new Uint32Array([24015])
+var data = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]);
+var blob = new Blob([header, data]);
+
+var reader = new FileReader();
+reader.onload = function(event) {
+	var result = event.target.result;
+	console.log(result.byteLength);
+}
+reader.readAsArrayBuffer(blob);
+	
+</script>
+</html>

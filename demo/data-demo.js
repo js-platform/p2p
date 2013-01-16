@@ -30,6 +30,8 @@ if (id) {
 }
 conn.onconnect = function() {
   log("Connected!");
+  var data = new Uint8Array([0, 1, 2, 3]);
+  conn.reliable.send(data.buffer);
 };
 conn.onerror = function(e) {
   log("Error: " + e);
