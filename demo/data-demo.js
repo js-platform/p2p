@@ -14,7 +14,7 @@ if(window.location.search) {
     if(params[i].match('^sid')) {
       sid = params[i].substring(4);
       hosting = false;
-    } else if(params[1].match('^broker')) {
+    } else if(params[i].match('^broker')) {
       brokerUrl = params[i].substring(7);
     }
   }
