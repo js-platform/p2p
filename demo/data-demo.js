@@ -25,7 +25,7 @@ var conn = undefined;
 if(hosting) {
   var host = new WebRTC.Host(brokerUrl, options);
   host.onready = function(sid) {  
-    var url = window.location + "?broker=" + brokerUrl + '&sid=' + sid;
+    var url = window.location.protocol + '//' + window.location.hostname + window.location.pathname + '?broker=' + brokerUrl + '&sid=' + sid;
     var div = document.getElementById("host");
     if(div) {
       div.innerHTML = '<a href="' + url + '">Open remote client</a>';
