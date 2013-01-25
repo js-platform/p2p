@@ -7,263 +7,366 @@ define(['module'], function(module) {
     }
   }
 
-  function Offer(url, optMetadata, optExpires) {
-    var offer = this;
-    this.onpending = null;
-    this.oncomplete = null;
-    this.onerror = null;
-    this.id = undefined;
-    this.pc = new mozRTCPeerConnection();
+  function Initiator(brokerUrl, sid)
+  {
+    var initiator = this;
+
+    initiator.channel = undefined;
+    initiator.cid = undefined;
+    initiator.key = undefined;
+    initiator.sid = sid;
+
+    initiator.onpending = null;
+    initiator.oncomplete = null;
+    initiator.onerror = null;
 
     function fail(error) {
-      if(offer.onerror && 'function' === typeof offer.onerror) {
+      if(initiator.onerror && 'function' === typeof initiator.onerror) {
         if (!(error instanceof Error))
           error = new Error(error);
-        offer.onerror.call(null, error);
+        initiator.onerror.call(null, error);
       }
+    };
+
+    function sendMessage(target, origin, message, ok, err) {
+      var url = brokerUrl + '/send/' + target;
+      var xhr = new XMLHttpRequest();
+
+      var request = {
+        'origin': origin,
+        'key': initiator.key,
+        'message': message
+      };
+
+      xhr.open('POST', url);
+      xhr.setRequestHeader('content-type', 'application/json');
+      xhr.onreadystatechange = function() {
+        if(4 !== xhr.readyState) return;
+        if(!(200 === xhr.status || 201 === xhr.status)) {
+          if(err && 'function' === typeof err) {
+            err(xhr.statusText + ': ' + xhr.responseText);
+          }
+        }
+
+        if(ok && 'function' === typeof ok) {
+          ok.call(null);
+        }
+      };
+      xhr.send(JSON.stringify(request));
     }
 
-    //XXX: This is a hack until RTCPeerConnection provides API for
-    // adding a network flow for DataChannels
-    navigator.mozGetUserMedia({audio: true, fake: true}, function(stream) {
-      // Now we have a fake stream.
-      offer.pc.addStream(stream);
-      offer.pc.createOffer(function(rtc_offer) {
-        // Now we have an offer SDP to give.
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', url + '/offer');
-        xhr.setRequestHeader('content-type', 'application/json');
-        xhr.onreadystatechange = function() {
-          if(4 !== xhr.readyState) {
-            return;
-          }
-          if(201 === xhr.status) {
-            var response = JSON.parse(xhr.responseText);
-            offer.id = response.id;
-            if(offer.onpending && 'function' === typeof offer.onpending) {
-              offer.onpending.call(null, url + '/offer/' + offer.id);
-            }
-            var answer = new EventSource(url + '/offer/' + offer.id + '/answer');
-            answer.onmessage = function(e) {
-              answer.close();
-              // Now we have the answer SDP from the other end, so
-              // set it as the remote description.
-              var rtc_answer = {'type':'answer', 'sdp': JSON.parse(e.data).value};
-              offer.pc.setRemoteDescription(rtc_answer, function() {
-                // Now the remote description is set.
-                if(offer.oncomplete && 'function' === typeof offer.oncomplete) {
-                  offer.oncomplete.call(null, offer.pc);
-                }
-              },
-                                            function(err) { fail(err); });
-            };
-            answer.onerror = function(e) {
-              if (e.readyState == EventSource.CLOSED) {
-                // Connection was closed.
-                return;
-              }
-              if(offer.onerror && 'function' === typeof offer.onerror) {
-                offer.onerror.call(null, e);
-              }
-            };
-          } else {
-            if(offer.onerror && 'function' === typeof offer.onerror) {
-              offer.onerror.call(null, new Error(xhr.statusText));
-            }
-          }
-        };
-        xhr.send(JSON.stringify({offer: rtc_offer.sdp}));
-      },
-                           function(err) { fail(err); });
-    }, function(err) { fail(err); });
-  }
+    function handleMessage(target, origin, message) {
+      if(message.hasOwnProperty('answer')) {
+        initiator.channel.close();
+        var answer = message['answer'];
+        peerConnection.setRemoteDescription({
+          'type': 'answer',
+          'sdp': answer
+        }, function() {
+          callback(initiator, 'oncomplete', [peerConnection]);
+        }, fail);        
+      }
+    };
 
-  function Answer(url) {
-    var answer = this;
-    this.oncomplete = null;
-    this.onerror = null;
+    function sendOffer(target, origin, peerConnection) {
+      // FIXME: make this portable
+      navigator.mozGetUserMedia({audio: true, fake: true}, function(stream) {
+        peerConnection.addStream(stream);
+        peerConnection.createOffer(function(offer) {
+          var message = {
+            'offer': offer.sdp
+          };
+          sendMessage(target, origin, message, undefined, fail);
+        }, fail);
+      }, fail);
+    };
+
+    function createChannel() {
+      var channel = new EventSource(brokerUrl + '/channel');
+      channel.addEventListener('channel', function(event)
+      {
+        console.log('initiator: channel message');
+        var data = JSON.parse(event.data);
+        initiator.cid = data['cid'];
+        initiator.key = data['key'];
+
+        sendOffer(initiator.sid, initiator.cid, peerConnection);
+      });
+      channel.addEventListener('message', function(event)
+      {
+        console.log('initiator: application message');
+        var data = JSON.parse(event.data);
+        var origin = data['origin'];
+        var target = data['target'];
+        var message = data['message'];
+
+        handleMessage(target, origin, message);
+      });
+      initiator.channel = channel;
+    };
+    
+    var peerConnection = new mozRTCPeerConnection();
+    createChannel();
+  };
+
+  function Responder(brokerUrl, options)
+  {
+    var responder = this;
+    options = options || {};
+    options['list'] = (undefined !== options['list']) ? options['list'] : false;
+    options['metadata'] = (undefined !== options['metadata']) ? options['metadata'] : {};
+
+    responder.channel = undefined;
+    responder.cid = undefined;
+    responder.key = undefined;
+    responder.sid = undefined;
+
+    responder.onready = null;
+    responder.onpending = null;
+    responder.oncomplete = null;
+    responder.onerror = null;
 
     function fail(error) {
-      if(answer.onerror && 'function' === typeof answer.onerror) {
+      if(responder.onerror && 'function' === typeof responder.onerror) {
         if (!(error instanceof Error))
           error = new Error(error);
-        answer.onerror.call(null, error);
+        responder.onerror.call(null, error);
       }
+    };
+
+    function sendMessage(target, origin, message, ok, err) {
+      var url = brokerUrl + '/send/' + target;
+      var xhr = new XMLHttpRequest();
+
+      var request = {
+        'origin': origin,
+        'key': responder.key,
+        'message': message
+      };
+      
+      xhr.open('POST', url);
+      xhr.setRequestHeader('content-type', 'application/json');
+      xhr.onreadystatechange = function() {
+        if(4 !== xhr.readyState) return;
+        if(!(200 === xhr.status || 201 === xhr.status)) {
+          if(err && 'function' === typeof err) {
+            err(xhr.statusText + ': ' + xhr.responseText);
+          }
+        }
+
+        if(ok && 'function' === typeof ok) {
+          ok.call(null);
+        }
+      };
+      xhr.send(JSON.stringify(request));
     }
 
-    var getXhr = new XMLHttpRequest();
-    getXhr.open('GET', url + '/offer');
-    getXhr.onreadystatechange = function() {
-      if(4 !== getXhr.readyState) {
-        return;
-      }
-      if(200 === getXhr.status) {
-        var response = JSON.parse(getXhr.responseText);
-        var offer = {'type': 'offer', 'sdp': response.value};
-        answer.pc = new mozRTCPeerConnection();
-
-        //XXX: This is a hack until RTCPeerConnection provides API for
-        // adding a network flow for DataChannels
+    function handleMessage(target, origin, message) {
+      if(message.hasOwnProperty('offer')) {
+        var offer = message['offer'];
+        var peerConnection = new mozRTCPeerConnection();
         navigator.mozGetUserMedia({audio: true, fake: true}, function(stream) {
-          // Now we have a fake stream.
-          answer.pc.addStream(stream);
-          answer.pc.setRemoteDescription(offer, function() {
-            // Now the remote description is set.
-            answer.pc.createAnswer(function(rtc_answer) {
-              // Now we have an answer SDP to give.
-              // First set it as local description.
-              answer.pc.setLocalDescription(rtc_answer, function() {
-                // Now the local description is set, so pass the answer
-                // SDP back to the broker.
-                var postXhr = new XMLHttpRequest();
-                postXhr.open('POST', url + '/answer');
-                postXhr.setRequestHeader('content-type', 'application/json');
-                postXhr.onreadystatechange = function() {
-                  if(4 !== postXhr.readyState) {
-                    return;
-                  }
-                  if(200 === postXhr.status) {
-                    if(answer.oncomplete && 'function' === typeof answer.oncomplete) {
-                      answer.oncomplete.call(null, answer.pc);
-                    }
-                  } else {
-                    if(answer.onerror && 'function' === typeof answer.onerror) {
-                      answer.onerror.call(null, new Error(postXhr.statusText));
-                    }
-                  }
+          peerConnection.addStream(stream);
+          peerConnection.setRemoteDescription({
+            'type': 'offer',
+            'sdp': offer
+          }, function() {
+            peerConnection.createAnswer(function(answer) {
+              peerConnection.setLocalDescription(answer, function() {
+                var message = {
+                  'answer': answer.sdp
                 };
-                postXhr.send(JSON.stringify({value: rtc_answer.sdp}));
-              }, function(err) { fail(err); });
-            }, function(err) { fail(err); });
-          },
-                                         function(err) { fail(err); });
-        }, function(err) { fail(err); });
-      } else {
-        if(answer.onerror && 'function' === typeof answer.onerror) {
-          answer.onerror.call(null, new Error(getXhr.statusText));
-        }
+                sendMessage(origin, target, message, function() {
+                  callback(responder, 'oncomplete', [peerConnection]);
+                }, fail);
+              }, fail);
+            }, fail);
+          }, fail);
+        }, fail);
       }
     };
-    getXhr.send(null);
-  }
 
-  // DataPeer wraps the Offer/Answer classes even further.
-  // It adds two DataChannels to the PeerConnection: a reliable (TCP-like)
-  // channel and an unreliable (UDP-like) channel, named .reliable and
-  // .unreliable respectively.
-  // There are four callbacks supported by DataPeer:
-  // onconnect: Called when both DataChannels are open.
-  // onerror: Called whenever some sort of error happens.
-  // onreliablemessage: Called when data arrives on the reliable channel.
-  // onunreliablemessage: Called when data arrives on the unreliable channel.
-  //TODO: support closing connection, handle closed events.
-  var default_broker = "http://localhost:3000";
-  function DataPeer(broker, offer_id) {
-    this.connected = false;
-    this.onoffercreated = null;
-    this.onconnect = null;
-    this.ondisconnect = null;
-    this.onreliablemessge = null;
-    this.onunreliablemessage = null;
-    this.reliable = null;
-    this.unreliable = null;
+    function createSession() {
+      var url = brokerUrl + '/session';
+      var xhr = new XMLHttpRequest();
+      var request = {
+        'cid': responder.cid,
+        'key': responder.key,
+        'list': options['list'],
+        'metadata': options['metadata']
+      };
 
-    var self = this;
-    if (!broker)
-      broker = default_broker;
+      xhr.open('POST', url);
+      xhr.setRequestHeader('content-type', 'application/json');
+      xhr.onreadystatechange = function() {
+        if(4 !== xhr.readyState) return;
+        if(!201 === xhr.status) fail(xhr.statusText);
 
-    if (offer_id) {
-      // Connecting to an offered connection.
-      var answer = new Answer(broker + "/offer/" + offer_id);
-      answer.oncomplete = function(pc) {
-        console.log("answer.oncomplete");
-        // Connect up some event listeners.
-        pc.ondatachannel = function(channel) {
-          console.log("pc.ondatachannel: " + channel.label);
-          if (channel.label == "reliable") {
-            if (self.reliable) {
-              callback(self, "onerror",
-                       ["Too many reliable DataChannels open!"]);
-              return;
-            }
-            self.reliable = channel;
-          } else if (channel.label == "unreliable") {
-            if (self.unreliable) {
-              callback(self, "onerror",
-                       ["Too many unreliable DataChannels open!"]);
-              return;
-            }
-            self.unreliable = channel;
+        var response = JSON.parse(xhr.responseText);
+        responder.sid = response['sid'];
+        callback(responder, 'onready', [responder.sid]);
+      };
+      xhr.send(JSON.stringify(request));
+    };
+
+    function createChannel() {
+      var channel = new EventSource(brokerUrl + '/channel');
+      channel.addEventListener('channel', function(event)
+      {
+        console.log('responder: channel message');
+        var data = JSON.parse(event.data);
+        var cid = data['cid'];
+        var key = data['key'];
+
+        responder.cid = cid;
+        responder.key = key;
+
+        createSession();        
+      });
+      channel.addEventListener('message', function(event)
+      {
+        console.log('responder: application message');
+        var data = JSON.parse(event.data);
+        var origin = data['origin'];
+        var target = data['target'];
+        var message = data['message'];
+
+        handleMessage(target, origin, message);
+      });
+      responder.channel = channel;
+    };    
+
+    createChannel();    
+  };
+  Responder.prototype.close = function close() {
+    this.channel.close();
+  };
+
+  function Host(brokerUrl, options) {
+    var host = this;
+
+    options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
+
+    host.connected = false;
+    host.reliable = {
+      channel: null,
+      onmessage: null,
+      send: null
+    };
+    host.unreliable = {
+      channel: null,
+      onmessage: null,
+      send: null
+    };
+
+    host.onready = null;
+    host.onconnect = null;
+    host.ondisconnect = null;
+    host.onerror = null;
+
+    var responder = new Responder(brokerUrl, options);
+    responder.oncomplete = function(peerConnection) {
+      console.log('responder.oncomplete', peerConnection);
+      responder.close();
+      peerConnection.ondatachannel = function(channel) {
+        if('reliable' === channel.label) {
+          host.reliable.channel = channel;
+        } else if('unreliable' === channel.label) {
+          host.unreliable.channel = channel;
+        } else {
+          console.error('unknown data channel' + channel.label);
+          return;
+        }
+        if(host.reliable.channel && host.unreliable.channel) {
+          host.connected = true;
+          callback(host, 'onconnect', []);
+        }
+        channel.binaryType = options['binaryType'];
+        channel.onmessage = function(event) {
+          if(channel.reliable) {
+            callback(host.reliable, 'onmessage', [event]);
           } else {
-            console.log("unknown DataChannel " + channel.label);
-            return;
+            callback(host.unreliable, 'onmessage', [event]);
           }
-          if (self.reliable && self.unreliable) {
-            self.connected = true;
-            callback(self, "onconnect", []);
-          }
-          channel.binaryType = "blob";
-          channel.onmessage = function(event) {
-            callback(self,
-                     channel.reliable ? "onreliablemessage"
-                                      : "onunreliablemessage",
-                     [event]);
-          };
         };
+      };
+      peerConnection.connectDataConnection(8001, 8000);
+    };
+    responder.onready = function(sid) {
+      callback(host, 'onready', [sid]);
+    };
+    responder.onerror = function(error) {
+      callback(host, 'onerror', [error]);
+    };
+  };
 
-        //XXX: this is a hack until the DataChannel APIs are finalized.
-        pc.connectDataConnection(8001,8000);
-      };
-      answer.onerror = function(e) {
-        callback(self, 'onerror', [e]);
-      };
-    } else {
-      // Creating a new offer
-      var offer = new Offer(broker);
-      offer.onpending = function(url) {
-        console.log("offer.onpending");
-        callback(self, 'onoffercreated', [url, offer.id]);
-      };
-      offer.oncomplete = function(pc) {
-        console.log("offer.oncomplete");
-        function datachannelopen() {
-          self.channels_open++;
-          if (self.channels_open == 2) {
-            self.connected = true;
-            callback(self, "onconnect", []);
+  var RELIABLE_CHANNEL_OPTIONS = {};
+  var UNRELIABLE_CHANNEL_OPTIONS = {
+    outOfOrderAllowed: true,
+    maxRetransmitNum: 0
+  };
+
+  function Peer(brokerUrl, sid, options) {
+    var peer = this;
+
+    options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
+
+    peer.connected = false;
+    peer.reliable = {
+      channel: null,
+      onmessage: null,
+      send: null
+    };
+    peer.unreliable = {
+      channel: null,
+      onmessage: null,
+      send: null
+    };
+
+    peer.onconnect = null;
+    peer.ondisconnect = null;
+    peer.onerror = null;
+
+    var initiator = new Initiator(brokerUrl, sid);
+    initiator.oncomplete = function(peerConnection) {
+      console.log('initiator.oncomplete', peerConnection);
+      peerConnection.onconnection = function() {        
+        var reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
+        var unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
+
+        reliable.binaryType = options['binaryType'];
+        unreliable.binaryType = options['binaryType'];
+
+        var opened = 0;
+        function handleOpen(event) {
+          if(2 === ++ opened) {
+            peer.connected = true;
+            callback(peer, 'onconnect', []);
           }
         }
-        pc.onconnection = function() {
-          self.channels_open = 0;
-          self.reliable = pc.createDataChannel("reliable", {});
-          self.reliable.binaryType = "blob";
-          self.reliable.onmessage = function(event) {
-            callback(self, "onreliablemessage", [event]);
-          };
-          self.reliable.onopen = datachannelopen;
+        reliable.onopen = handleOpen;
+        unreliable.onopen = handleOpen;
 
-          self.unreliable = pc.createDataChannel("unreliable",
-                                                 {outOfOrderAllowed: true,
-                                                  maxRetransmitNum: 0});
-          self.unreliable.binaryType = "blob";
-          self.unreliable.onmessage = function(event) {
-            callback(self, "onunreliablemessage", [event]);
-          };
-          self.unreliable.onopen = datachannelopen;
+        reliable.onmessage = function(event) {
+          callback(peer.reliable, 'onmessage', [event]);
         };
-        //XXX: this is a hack until the DataChannel APIs are finalized.
-        pc.connectDataConnection(8000,8001);
+        unreliable.onmessage = function(event) {
+          callback(peer.unreliable, 'onmessage', [event]);
+        }
+
+        peer.reliable.channel = reliable;
+        peer.unreliable.channel = unreliable;
       };
-      offer.onerror = function(e) {
-        callback(self, 'onerror', [e]);
-      };
+      peerConnection.connectDataConnection(8000, 8001);
     };
-  }
+    initiator.onerror = function(error) {
+      callback(peer, 'onerror', [error]);
+    };
+  };
 
   return {
-    Offer: Offer,
-    Answer: Answer,
-    DataPeer: DataPeer
+    Host: Host,
+    Peer: Peer
   };
 
 });
@@ -271,7 +374,7 @@ define(['module'], function(module) {
 ? define
 : function (deps, factory) { typeof exports === 'object'
 ? (module.exports = factory())
-: (this.WebRTCPeer = factory());
+: (this.WebRTC = factory());
 },
 // Boilerplate for AMD, Node, and browser global
 this

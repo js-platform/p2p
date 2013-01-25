@@ -4,11 +4,13 @@
  */
 
 var express = require('express')
-  , routes = require('./routes')
-  // , user = require('./routes/user')
-  , offer = require('./routes/offer')
+  , fs = require('fs')  
+  , https = require('https')
   , http = require('http')
-  , path = require('path');
+  , path = require('path')
+  , routes = require('./routes')
+  , broker = require('./routes/broker')
+  ;
 
 var app = express();
 
@@ -41,10 +43,16 @@ app.all('*', function(req, res, next) {
   }
 });
 
-app.get('/', routes.index);
-app.post('/offer/:id?/:field?', offer.post);
-app.get('/offer/:id?/:field?', offer.get);
-app.get('/offer/:id', offer.delete);
+app.get('/channel', broker.channel);
+app.get('/list', broker.list);
+app.post('/session', broker.session);
+app.post('/session/:sid/update', broker.update);
+app.post('/send/:id', broker.send);
+
+var httpsOptions = {
+  key: fs.readFileSync('./ssl/localhost.key'),
+  cert: fs.readFileSync('./ssl/localhost.crt')
+};
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
