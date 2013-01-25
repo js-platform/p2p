@@ -6,9 +6,7 @@ function log(msg) {
 var sid = null;
 var brokerUrl = 'http://localhost:3000';
 var hosting = true;
-var options = {
-  'bineryType': 'blob'
-};
+var options = {};
 
 if(window.location.search) {
   var params = window.location.search.substring(1).split('&');
@@ -34,7 +32,7 @@ if(hosting) {
     }
   };
   host.onconnect = function() {
-    console.log('connected');
+    log('connected');
     conn = host;
     conn.reliable.onmessage = function(msg) {
       log("<other> " + msg.data);
@@ -46,7 +44,7 @@ if(hosting) {
 } else {
   var peer = new WebRTC.Peer(brokerUrl, sid, options);
   peer.onconnect = function() {
-    console.log('connected');
+    log('connected');
     conn = peer;
     conn.reliable.onmessage = function(msg) {
       log("<other> " + msg.data);
