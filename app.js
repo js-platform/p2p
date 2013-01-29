@@ -45,6 +45,7 @@ app.all('*', function(req, res, next) {
 
 app.get('/channel', broker.channel);
 app.get('/list', broker.list);
+app.get('/session/:sid', broker.show);
 app.post('/session', broker.session);
 app.post('/session/:sid/update', broker.update);
 app.post('/send/:id', broker.send);

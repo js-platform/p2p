@@ -3,7 +3,7 @@ function log(msg) {
   document.getElementById("chat").appendChild(document.createTextNode(msg + "\n"));
 }
 
-var sid = null;
+var brokerSession = null;
 var brokerUrl = 'http://localhost:3000';
 var hosting = true;
 var options = {};
@@ -11,11 +11,11 @@ var options = {};
 if(window.location.search) {
   var params = window.location.search.substring(1).split('&');
   for(var i = 0; i < params.length; ++ i) {
-    if(params[i].match('^sid')) {
-      sid = params[i].substring(4);
+    if(params[i].match('^webrtc-session')) {
+      brokerSession = params[i].split('=')[1];
       hosting = false;
-    } else if(params[i].match('^broker')) {
-      brokerUrl = params[i].substring(7);
+    } else if(params[i].match('^webrtc-broker')) {
+      brokerUrl = params[i].split('=')[1];
     }
   }
 }
@@ -23,10 +23,10 @@ if(window.location.search) {
 console.log('broker', brokerUrl);
 var conn = undefined;
 
-if(hosting) {
+if(hosting) {  
   var host = new WebRTC.Host(brokerUrl, options);
   host.onready = function(sid) {  
-    var url = window.location.protocol + '//' + window.location.hostname + window.location.pathname + '?broker=' + brokerUrl + '&sid=' + sid;
+    var url = window.location + '&webrtc-session=' + sid;
     console.log(url);
     var div = document.getElementById("host");
     if(div) {
@@ -44,7 +44,7 @@ if(hosting) {
     console.error(error);
   };  
 } else {
-  var peer = new WebRTC.Peer(brokerUrl, sid, options);
+  var peer = new WebRTC.Peer(brokerUrl, brokerSession, options);
   peer.onconnect = function() {
     log('connected');
     conn = peer;

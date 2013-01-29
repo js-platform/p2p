@@ -110,11 +110,12 @@ define(['module'], function(module) {
   };
 
   function Responder(brokerUrl, options)
-  {
+  {    
     var responder = this;
     options = options || {};
     options['list'] = (undefined !== options['list']) ? options['list'] : false;
     options['metadata'] = (undefined !== options['metadata']) ? options['metadata'] : {};
+    options['url'] = (undefined !== options['url']) ? options['url'] : window.location.toString();    
 
     responder.channel = undefined;
     responder.cid = undefined;
@@ -193,7 +194,8 @@ define(['module'], function(module) {
         'cid': responder.cid,
         'key': responder.key,
         'list': options['list'],
-        'metadata': options['metadata']
+        'metadata': options['metadata'],
+        'url': options['url']
       };
 
       xhr.open('POST', url);
@@ -204,6 +206,7 @@ define(['module'], function(module) {
 
         var response = JSON.parse(xhr.responseText);
         responder.sid = response['sid'];
+
         callback(responder, 'onready', [responder.sid]);
       };
       xhr.send(JSON.stringify(request));

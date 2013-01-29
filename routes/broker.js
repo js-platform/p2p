@@ -68,7 +68,35 @@ exports.channel = function channel(req, res) {
 };
 
 exports.list = function list(req, res) {
+	var result = '';
+	Object.keys(sessions).forEach(function(sid) {
+		result += '<a href=' + req.headers['host'] + '/session/' + sid + '>' + sid + '</a><br>';
+	});
+	res.send(200, result);
+};
 
+exports.show = function show(req, res) {
+	var sid = req.params['sid'];
+
+	if(!sessions.hasOwnProperty(sid)) {
+		return res.send(404, 'session not found');
+	}
+
+	var session = sessions[sid];
+
+	var url = session['url'].split('?');
+  var query = url[1].split('&');
+  query.push('webrtc-session=' + sid);
+  url[1] = query.join('&');
+  url = url.join('?');
+
+  var result = '';
+  result += 'url: <a href="' + url + '">' + url + '</a><br>';
+  result += 'list: ' + session['list'] + '<br>';
+  result += 'tags: ' + JSON.stringify(session['tags']) + '<br>';
+  result += 'metadata: ' + JSON.stringify(session['metadata']) + '<br>';
+
+	return res.send(200, result);
 };
 
 exports.session = function session(req, res) {
@@ -87,17 +115,18 @@ exports.session = function session(req, res) {
 		return res.send(400, 'invalid cid or key');
 	}
 
-	body['tags'] === undefined ? [] : body['tags'];
-	body['list'] === undefined ? false : body['list'];
-	body['metadata'] === undefined ? {} : body['metadata'];
+	if(!body['url']) {
+		return res.send(400, 'missing url');
+	}
 
 	var sid = mkguid();
 
 	var session = {
 		cid: cid,
-		list: body['list'],
-		tags: body['tags'],
-		metadata: body['metadata']
+		url: body['url'],
+		list: (body['list'] === undefined) ? false : body['list'],
+		tags: (body['tags'] === undefined) ? [] : body['tags'],
+		metadata: (body['metadata'] === undefined) ? {} : body['metadata']
 	};
 
 	channels[cid]['sessions'].push(sid);
