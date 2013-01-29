@@ -70,7 +70,7 @@ exports.channel = function channel(req, res) {
 exports.list = function list(req, res) {
 	var result = '';
 	Object.keys(sessions).forEach(function(sid) {
-		result += '<a href=' + req.headers['host'] + '/session/' + sid + '>' + sid + '</a><br>';
+		result += '<a href="' + req.headers['host'] + '/session/' + sid + '">' + sid + '</a><br>';
 	});
 	res.send(200, result);
 };
