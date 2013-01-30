@@ -4,7 +4,7 @@ function log(msg) {
 }
 
 var brokerSession = null;
-var brokerUrl = 'http://localhost:3000';
+var brokerUrl = 'http://webrtc-broker.herokuapp.com';
 var hosting = true;
 var options = {};
 
