@@ -248,6 +248,7 @@ define(['module'], function(module) {
   function Host(brokerUrl, options) {
     var host = this;
 
+    options = options || {};
     options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
 
     host.connected = false;
@@ -312,6 +313,7 @@ define(['module'], function(module) {
   function Peer(brokerUrl, sid, options) {
     var peer = this;
 
+    options = options || {};
     options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
 
     peer.connected = false;
