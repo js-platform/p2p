@@ -236,6 +236,9 @@ define(['module'], function(module) {
 
         handleMessage(target, origin, message);
       });
+      channel.addEventListener('ping', function() {
+        console.log('responder: broker ping');
+      });
       responder.channel = channel;
     };    
 

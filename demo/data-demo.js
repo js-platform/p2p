@@ -23,15 +23,44 @@ if(window.location.search) {
 console.log('broker', brokerUrl);
 var conn = undefined;
 
+var Query = {
+  parse: function parse(queryString) {
+    var result = {};
+    var parts = queryString.split('&');
+    parts.forEach(function(part) {
+      var key = part.split('=')[0];
+      if(!result.hasOwnProperty(key))
+        result[key] = [];
+      var value = part.split('=')[1];
+      if(undefined !== value)
+        result[key].push(value);
+    });
+    return result;
+  },
+  defined: function defined(params, key) {
+    return (params.hasOwnProperty(key));
+  },
+  stringify: function stringify(params) {
+    var result = [];
+    Object.keys(params).forEach(function(param) {
+      var key = param;
+      var values = params[key];
+      if(values.length > 0) {
+        values.forEach(function(value) {
+          result.push(key + '=' + value);
+        });
+      } else {
+        result.push(key);
+      }
+    });
+    return result.join('&');
+  }
+};
+
 if(hosting) {  
   var host = new WebRTC.Host(brokerUrl, options);
-  host.onready = function(sid) {  
-    var url = window.location + '&webrtc-session=' + sid;
-    console.log(url);
-    var div = document.getElementById("host");
-    if(div) {
-      div.innerHTML = '<a href="' + url + '">Open remote client</a>';
-    }
+  host.onready = function(sid) {
+    console.log('ready');
   };
   host.onconnect = function() {
     log('connected');
