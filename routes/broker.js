@@ -23,6 +23,14 @@ function mkssehdr() {
 var channels = {};
 var sessions = {};
 
+var PING_INTERVAL = 15000;
+setInterval(function() {
+	Object.keys(channels).forEach(function(cid) {
+		var channel = channels[cid];
+		channel.res.write(mksseevt('ping', ''));
+	});
+}, PING_INTERVAL);
+
 function tocid(id) {
 	if(channels.hasOwnProperty(id)) {
 		return id;
