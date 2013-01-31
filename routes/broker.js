@@ -1,5 +1,7 @@
 var _ = require('underscore');
 var crypto = require('crypto');
+var url = require('url');
+var querystring = require('querystring');
 
 function mkguid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -92,14 +94,13 @@ exports.show = function show(req, res) {
 
 	var session = sessions[sid];
 
-	var url = session['url'].split('?');
-  var query = url[1].split('&');
-  query.push('webrtc-session=' + sid);
-  url[1] = query.join('&');
-  url = url.join('?');
+	var clientUrl = url.parse(session['url'], true);
+  clientUrl.query['webrtc-session'] = sid;
+  clientUrl.search = querystring.unescape(querystring.stringify(clientUrl.query));
+  clientUrlString = url.format(clientUrl);
 
   var result = '';
-  result += 'url: <a href="' + url + '">' + url + '</a><br>';
+  result += 'url: <a href="' + clientUrlString + '">' + clientUrlString + '</a><br>';
   result += 'list: ' + session['list'] + '<br>';
   result += 'tags: ' + JSON.stringify(session['tags']) + '<br>';
   result += 'metadata: ' + JSON.stringify(session['metadata']) + '<br>';

@@ -26,7 +26,7 @@ var conn = undefined;
 var Query = {
   parse: function parse(queryString) {
     var result = {};
-    var parts = queryString.split('&');
+    var parts = (undefined !== queryString) ? queryString.split('&') : [];
     parts.forEach(function(part) {
       var key = part.split('=')[0];
       if(!result.hasOwnProperty(key))
