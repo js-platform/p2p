@@ -236,9 +236,6 @@ define(['module'], function(module) {
 
         handleMessage(target, origin, message);
       });
-      channel.addEventListener('ping', function() {
-        console.log('responder: broker ping');
-      });
       responder.channel = channel;
     };    
 
@@ -296,6 +293,9 @@ define(['module'], function(module) {
             callback(host.unreliable, 'onmessage', [event]);
           }
         };
+      };
+      peerConnection.onstatechange = function(event) {
+        console.log('responder state change', event);
       };
       peerConnection.connectDataConnection(8001, 8000);
     };
@@ -364,6 +364,9 @@ define(['module'], function(module) {
 
         peer.reliable.channel = reliable;
         peer.unreliable.channel = unreliable;
+      };
+      peerConnection.onstatechange = function(event) {
+        console.log('initiator state change', event);
       };
       peerConnection.connectDataConnection(8000, 8001);
     };
