@@ -61,6 +61,14 @@ if(hosting) {
   var host = new WebRTC.Host(brokerUrl, options);
   host.onready = function(sid) {
     console.log('ready');
+    var location = window.location.toString().split('?');
+    var params = Query.parse(location[1]);
+    params['webrtc-session'] = [sid];
+    location[1] = Query.stringify(params);
+    var url = location.join('?');
+
+    var div = document.getElementById('host');
+    div.innerHTML = '<a href="' + url + '">connect</a>';
   };
   host.onconnect = function() {
     log('connected');
@@ -68,6 +76,9 @@ if(hosting) {
     conn.reliable.onmessage = function(msg) {
       log("<other> " + msg.data);
     };
+
+    var div = document.getElementById('host');
+    div.innerHTML = '';
   };
   host.onerror = function(error) {
     console.error(error);
