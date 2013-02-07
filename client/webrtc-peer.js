@@ -1,6 +1,9 @@
 (function(define, global) { 'use strict';
 define(['module'], function(module) {
 
+  var ONE_SECOND = 1000;
+  var PING_INTERVAL = 10 * ONE_SECOND;
+
   function callback(thing, method, args) {
     if(method in thing && 'function' === typeof thing[method]) {
       thing[method].apply(thing, args);
@@ -83,6 +86,14 @@ define(['module'], function(module) {
 
     function createChannel() {
       var channel = new EventSource(brokerUrl + '/channel');
+      channel.addEventListener('error', function(event)
+      {
+        if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
+          // Connection was closed.          
+          console.log('initiator: channel closed');
+          channel.close();
+        }
+      }, false);
       channel.addEventListener('channel', function(event)
       {
         console.log('initiator: channel message');
@@ -91,7 +102,7 @@ define(['module'], function(module) {
         initiator.key = data['key'];
 
         sendOffer(initiator.sid, initiator.cid, peerConnection);
-      });
+      }, false);
       channel.addEventListener('message', function(event)
       {
         console.log('initiator: application message');
@@ -101,7 +112,7 @@ define(['module'], function(module) {
         var message = data['message'];
 
         handleMessage(target, origin, message);
-      });
+      }, false);
       initiator.channel = channel;
     };
     
@@ -213,7 +224,20 @@ define(['module'], function(module) {
     };
 
     function createChannel() {
-      var channel = new EventSource(brokerUrl + '/channel');
+      var channel = new EventSource(brokerUrl + '/channel');      
+      var intervalId = null;      
+      channel.addEventListener('error', function(event)
+      {
+        if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
+          // Connection was closed.          
+          console.log('responder: channel closed');
+          if(intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          channel.close();
+        }
+      }, false);
       channel.addEventListener('channel', function(event)
       {
         console.log('responder: channel message');
@@ -224,8 +248,20 @@ define(['module'], function(module) {
         responder.cid = cid;
         responder.key = key;
 
+        intervalId = window.setInterval(function() {
+          var url = brokerUrl + '/ping';
+          var request = {
+            origin: cid,
+            key: key
+          };
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', url);
+          xhr.setRequestHeader('content-type', 'application/json');
+          xhr.send(JSON.stringify(request));
+        }, PING_INTERVAL);
+
         createSession();        
-      });
+      }, false);
       channel.addEventListener('message', function(event)
       {
         console.log('responder: application message');
@@ -235,7 +271,7 @@ define(['module'], function(module) {
         var message = data['message'];
 
         handleMessage(target, origin, message);
-      });
+      }, false);
       responder.channel = channel;
     };    
 

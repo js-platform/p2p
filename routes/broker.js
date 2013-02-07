@@ -19,17 +19,21 @@ function mksseevt(type, data) {
 }
 
 function mkssehdr() {
-	return {'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive'};
+	return {'content-type': 'text/event-stream', 'cache-control': 'no-cache'};
 }
 
 var channels = {};
 var sessions = {};
 
-var PING_INTERVAL = 15000;
+var ONE_SECOND = 1000;
+var PING_INTERVAL = 10 * ONE_SECOND;
 setInterval(function() {
 	Object.keys(channels).forEach(function(cid) {
 		var channel = channels[cid];
-		channel.res.write(mksseevt('ping', ''));
+		if(CH_DEAD === -- channel.state) {
+			console.log('closing channel: ' + cid);
+			channel.res.end();
+		}
 	});
 }, PING_INTERVAL);
 
@@ -43,6 +47,10 @@ function tocid(id) {
 	}
 }
 
+var CH_ALIVE = 2;
+var CH_IDLE = 1;
+var CH_DEAD = 0;
+
 exports.channel = function channel(req, res) {
 	var accepts = req.headers['accept'];
 	if(!'text/event-stream' === accepts) {
@@ -55,7 +63,8 @@ exports.channel = function channel(req, res) {
 	var channel = {
 		res: res,
 		key: key,
-		sessions: []
+		sessions: [],
+		state: CH_ALIVE
 	};
 	res.connection.setTimeout(0);
 	res.on('close', function onclose() {
@@ -75,6 +84,28 @@ exports.channel = function channel(req, res) {
 	));
 
 	return;
+};
+
+exports.ping = function ping(req, res) {
+	var body = req.body;
+
+	if(!body['origin']) {
+		return res.send(400, 'missing origin');
+	}
+	if(!body['key']) {
+		return res.send(400, 'missing key');
+	}
+
+	var cid = body['origin'];
+	var key = body['key'];
+	if(!channels.hasOwnProperty(cid) || key !== channels[cid]['key']) {
+		return res.send(400, 'invalid origin or key');
+	}
+
+	var channel = channels[cid];
+	channel.state = CH_ALIVE;
+
+	res.send(200);
 };
 
 exports.list = function list(req, res) {

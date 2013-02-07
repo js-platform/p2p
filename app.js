@@ -49,6 +49,7 @@ app.get('/session/:sid', broker.show);
 app.post('/session', broker.session);
 app.post('/session/:sid/update', broker.update);
 app.post('/send/:id', broker.send);
+app.post('/ping', broker.ping);
 
 var httpsOptions = {
   key: fs.readFileSync('./ssl/localhost.key'),
