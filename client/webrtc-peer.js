@@ -86,11 +86,16 @@ define(['module'], function(module) {
 
     function createChannel() {
       var channel = new EventSource(brokerUrl + '/channel');
+      var intervalId;
       channel.addEventListener('error', function(event)
       {
         if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
           // Connection was closed.          
           console.log('initiator: channel closed');
+          if(intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
           channel.close();
         }
       }, false);
@@ -100,6 +105,18 @@ define(['module'], function(module) {
         var data = JSON.parse(event.data);
         initiator.cid = data['cid'];
         initiator.key = data['key'];
+
+        intervalId = window.setInterval(function() {
+          var url = brokerUrl + '/ping';
+          var request = {
+            origin: cid,
+            key: key
+          };
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', url);
+          xhr.setRequestHeader('content-type', 'application/json');
+          xhr.send(JSON.stringify(request));
+        }, PING_INTERVAL);
 
         sendOffer(initiator.sid, initiator.cid, peerConnection);
       }, false);
