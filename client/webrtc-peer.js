@@ -121,9 +121,14 @@ define(['module'], function(module) {
   {    
     var responder = this;
     options = options || {};
-    options['list'] = (undefined !== options['list']) ? options['list'] : false;
-    options['metadata'] = (undefined !== options['metadata']) ? options['metadata'] : {};
-    options['url'] = (undefined !== options['url']) ? options['url'] : window.location.toString();    
+    options['session'] = options['session'] || {};
+    var sessionOptions = options['session'];
+
+    sessionOptions['list'] = (undefined !== sessionOptions['list']) ? sessionOptions['list'] : false;
+    sessionOptions['metadata'] = (undefined !== sessionOptions['metadata']) ? sessionOptions['metadata'] : {};
+    sessionOptions['url'] = (undefined !== sessionOptions['url']) ? sessionOptions['url'] : window.location.toString();
+    sessionOptions['authenticate'] = (undefined !== sessionOptions['authenticate']) ? sessionOptions['authenticate'] : false;
+    sessionOptions['application'] = (undefined !== sessionOptions['application']) ? sessionOptions['application'] : '?';
 
     responder.channel = undefined;
     responder.cid = undefined;
@@ -201,9 +206,11 @@ define(['module'], function(module) {
       var request = {
         'cid': responder.cid,
         'key': responder.key,
-        'list': options['list'],
-        'metadata': options['metadata'],
-        'url': options['url']
+        'list': sessionOptions['list'],
+        'metadata': sessionOptions['metadata'],
+        'url': sessionOptions['url'],
+        'authenticate': sessionOptions['authenticate'],
+        'application': sessionOptions['application']
       };
 
       xhr.open('POST', url);

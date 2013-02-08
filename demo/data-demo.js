@@ -4,9 +4,9 @@ function log(msg) {
 }
 
 var brokerSession = null;
-var brokerUrl = 'http://webrtc-broker.herokuapp.com';
+var brokerUrl = 'http://modeswit.ch:3000';
 var hosting = true;
-var options = {};
+var options;
 
 if(window.location.search) {
   var params = window.location.search.substring(1).split('&');
@@ -58,6 +58,11 @@ var Query = {
 };
 
 if(hosting) {  
+  options = {
+    'session': {
+      'application': 'data-demo'
+    }
+  };
   var host = new WebRTC.Host(brokerUrl, options);
   host.onready = function(sid) {
     console.log('ready');
@@ -84,6 +89,7 @@ if(hosting) {
     console.error(error);
   };  
 } else {
+  options = {};
   var peer = new WebRTC.Peer(brokerUrl, brokerSession, options);
   peer.onconnect = function() {
     log('connected');

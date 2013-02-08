@@ -93,7 +93,9 @@ exports.show = function show(req, res) {
 
   var result = '';
   result += 'url: <a href="' + clientUrlString + '">' + clientUrlString + '</a><br>';
+  result += 'application: ' + session['application'] + '<br>';
   result += 'list: ' + session['list'] + '<br>';
+  result += 'authenticate: ' + session['authenticate'] + '<br>';
   result += 'tags: ' + JSON.stringify(session['tags']) + '<br>';
   result += 'metadata: ' + JSON.stringify(session['metadata']) + '<br>';
 
@@ -125,7 +127,9 @@ exports.session = function session(req, res) {
 	var session = {
 		cid: cid,
 		url: body['url'],
+		application: (body['application'] === undefined) ? '?' : body['application'],
 		list: (body['list'] === undefined) ? false : body['list'],
+		authenticate: (body['authenticate'] === undefined) ? false : body['authenticate'],
 		tags: (body['tags'] === undefined) ? [] : body['tags'],
 		metadata: (body['metadata'] === undefined) ? {} : body['metadata']
 	};
