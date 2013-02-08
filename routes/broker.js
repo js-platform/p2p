@@ -70,9 +70,13 @@ exports.channel = function channel(req, res) {
 };
 
 exports.list = function list(req, res) {
+	var application = req.query['application'];
+
 	var result = '';
 	Object.keys(sessions).forEach(function(sid) {
-		result += '<a href="http://' + req.headers['host'] + '/session/' + sid + '">' + sid + '</a><br>';
+		var session = sessions[sid];
+		if(application && application !== session['application']) return;
+  	result += '<a href="http://' + req.headers['host'] + '/session/' + sid + '">' + sid + '</a><br>';
 	});
 	res.send(200, result);
 };
@@ -98,6 +102,7 @@ exports.show = function show(req, res) {
   result += 'authenticate: ' + session['authenticate'] + '<br>';
   result += 'tags: ' + JSON.stringify(session['tags']) + '<br>';
   result += 'metadata: ' + JSON.stringify(session['metadata']) + '<br>';
+  result += 'created: ' + (new Date(session['created'])).toString() + '<br>';
 
 	return res.send(200, result);
 };
@@ -131,7 +136,8 @@ exports.session = function session(req, res) {
 		list: (body['list'] === undefined) ? false : body['list'],
 		authenticate: (body['authenticate'] === undefined) ? false : body['authenticate'],
 		tags: (body['tags'] === undefined) ? [] : body['tags'],
-		metadata: (body['metadata'] === undefined) ? {} : body['metadata']
+		metadata: (body['metadata'] === undefined) ? {} : body['metadata'],
+		created: Date.now()
 	};
 
 	channels[cid]['sessions'].push(sid);
