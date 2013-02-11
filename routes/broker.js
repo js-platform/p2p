@@ -85,7 +85,7 @@ exports.list = function list(req, res) {
 		result.push({
 			'url': clientUrl,
 			'application': session['application'],
-			'authenticate': seession['authenticate'],
+			'authenticate': session['authenticate'],
 			'tags': session['tags'],
 			'metadata': session['metadata'],
 			'created': session['created']
