@@ -24,6 +24,7 @@ function mkssehdr() {
 
 var channels = {};
 var sessions = {};
+var listing = {};
 
 function tocid(id) {
 	if(channels.hasOwnProperty(id)) {
@@ -53,6 +54,18 @@ exports.channel = function channel(req, res) {
 	res.on('close', function onclose() {
 		var channel = channels[cid];
 		channel['sessions'].forEach(function(sid) {
+			var session = sessions[sid];
+			var lids = Object.keys(listing);
+			lids.forEach(function(lid) {
+				var lister = listing[lid];
+				var result = [sid];
+				var application = lister['application'];
+				if(application && application !== session['application']) return;
+
+				lister.res.write(mksseevt('delete', 
+					result
+				));
+			});
 			delete sessions[sid];
 		});
 		delete channels[cid];
@@ -83,6 +96,7 @@ exports.list = function list(req, res) {
 	  clientUrlString = url.format(clientUrl);
 
 		result.push({
+			'sid': sid,
 			'url': clientUrlString,
 			'application': session['application'],
 			'authenticate': session['authenticate'],
@@ -91,7 +105,25 @@ exports.list = function list(req, res) {
 			'created': session['created']
 		});  	
 	});
-	res.send(200, JSON.stringify(result));
+
+	var accepts = req.headers['accept'];
+	if(!'text/event-stream' === accepts) {		
+		res.send(200, JSON.stringify(result));
+	} else {
+		var lid = mkguid();
+		listing[lid] = {
+			res: res,
+			application: application
+		};
+		res.connection.setTimeout(0);
+		res.on('close', function onclose() {
+			delete listing[lid];
+		});
+		res.writeHead(200, mkssehdr());
+		res.write(mksseevt('list', 
+			result
+		));
+	}
 };
 
 exports.show = function show(req, res) {
@@ -156,9 +188,38 @@ exports.session = function session(req, res) {
 	channels[cid]['sessions'].push(sid);
 	sessions[sid] = session;
 
-	return res.send(201, JSON.stringify(
+	var r = res.send(201, JSON.stringify(
 		{'sid': sid}
 	));
+
+	// update listings	
+	var result = [];
+	var clientUrl = url.parse(session['url'], true);
+  clientUrl.query['webrtc-session'] = sid;
+  clientUrl.search = querystring.unescape(querystring.stringify(clientUrl.query));
+  clientUrlString = url.format(clientUrl);
+
+	result.push({
+		'sid': sid,
+		'url': clientUrlString,
+		'application': session['application'],
+		'authenticate': session['authenticate'],
+		'tags': session['tags'],
+		'metadata': session['metadata'],
+		'created': session['created']
+	});
+	var lids = Object.keys(listing);
+	lids.forEach(function(lid) {
+		var lister = listing[lid];
+		var application = lister['application'];
+		if(application && application !== session['application']) return;
+
+		lister.res.write(mksseevt('insert', 
+			result
+		));
+	});
+
+	return r;
 };
 
 exports.update = function update(req, res) {
