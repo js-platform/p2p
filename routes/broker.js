@@ -72,13 +72,26 @@ exports.channel = function channel(req, res) {
 exports.list = function list(req, res) {
 	var application = req.query['application'];
 
-	var result = '';
+	var result = [];
 	Object.keys(sessions).forEach(function(sid) {
-		var session = sessions[sid];
+		var session = sessions[sid];		
 		if(application && application !== session['application']) return;
-  	result += '<a href="http://' + req.headers['host'] + '/session/' + sid + '">' + sid + '</a><br>';
+
+		var clientUrl = url.parse(session['url'], true);
+	  clientUrl.query['webrtc-session'] = sid;
+	  clientUrl.search = querystring.unescape(querystring.stringify(clientUrl.query));
+	  clientUrlString = url.format(clientUrl);
+
+		result.push({
+			'url': clientUrl,
+			'application': session['application'],
+			'authenticate': seession['authenticate'],
+			'tags': session['tags'],
+			'metadata': session['metadata'],
+			'created': session['created']
+		});  	
 	});
-	res.send(200, result);
+	res.send(200, JSON.stringify(result));
 };
 
 exports.show = function show(req, res) {
