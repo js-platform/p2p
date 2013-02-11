@@ -83,7 +83,7 @@ exports.list = function list(req, res) {
 	  clientUrlString = url.format(clientUrl);
 
 		result.push({
-			'url': clientUrl,
+			'url': clientUrlString,
 			'application': session['application'],
 			'authenticate': session['authenticate'],
 			'tags': session['tags'],

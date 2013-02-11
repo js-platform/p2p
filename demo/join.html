@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
 </head>
 <body>
-
+	<div id="sessions">
+	</div>
 </body>
 <script>
 	var brokerUrl = 'http://modeswit.ch:3000';
@@ -17,16 +18,29 @@
 	  }
 	}
 
+	console.log(brokerUrl);
+
 	var xhr = new XMLHttpRequest();
-	xhr.open('GET', brokerUrl + '/list?application=datademo');
+	xhr.open('GET', brokerUrl + '/list?application=data-demo');
 	xhr.onreadystatechange = function() {
 		if(4 !== xhr.readyState) return;
 		if(!(200 === xhr.status || 201 === xhr.status)) {
       console.error(xhr.statusText + ': ' + xhr.responseText);
     }
 
-    console.log(xhr.responseText);
+    display(JSON.parse(xhr.responseText));
 	};
 	xhr.send(null);
+
+	function display(sessions) {
+		sessions = sessions || [];		
+		sessions.forEach(function(session) {
+			console.info(session);
+			var div = document.getElementById('sessions');
+			var node = document.createElement('div');
+			node.innerHTML = new Date(session['created']).toString() + '|' + session['application'] + '|' + '<a href="' + session['url'] + '">join</a>';
+			div.appendChild(node);
+		});
+	};
 </script>
 </html>
