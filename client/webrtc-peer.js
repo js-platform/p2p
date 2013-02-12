@@ -277,13 +277,11 @@ define(['module'], function(module) {
     host.connected = false;
     host.reliable = {
       channel: null,
-      onmessage: null,
-      send: null
+      onmessage: null
     };
     host.unreliable = {
       channel: null,
-      onmessage: null,
-      send: null
+      onmessage: null
     };
 
     host.onready = null;
@@ -345,13 +343,11 @@ define(['module'], function(module) {
     peer.connected = false;
     peer.reliable = {
       channel: null,
-      onmessage: null,
-      send: null
+      onmessage: null
     };
     peer.unreliable = {
       channel: null,
-      onmessage: null,
-      send: null
+      onmessage: null
     };
 
     peer.onconnect = null;
@@ -361,9 +357,10 @@ define(['module'], function(module) {
     var initiator = new Initiator(brokerUrl, sid);
     initiator.oncomplete = function(peerConnection) {
       console.log('initiator.oncomplete', peerConnection);
-      peerConnection.onconnection = function() {        
+      peerConnection.onconnection = function() {
         var reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
         var unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
+        var control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
 
         reliable.binaryType = options['binaryType'];
         unreliable.binaryType = options['binaryType'];
