@@ -1,6 +1,8 @@
 (function(define, global) { 'use strict';
 define(['module'], function(module) {
 
+  var ONE_SECOND = 1000; // One second in milliseconds
+
   function callback(thing, method, args) {
     if(method in thing && 'function' === typeof thing[method]) {
       thing[method].apply(thing, args);
@@ -268,11 +270,22 @@ define(['module'], function(module) {
     this.channel.close();
   };
 
+  var DEFAULT_CONNECTION_TIMEOUT = 10 * ONE_SECOND;
+  var DEFAULT_PING_TIMEOUT = 1 * ONE_SECOND;
+
+  var RELIABLE_CHANNEL_OPTIONS = {};
+  var UNRELIABLE_CHANNEL_OPTIONS = {
+    outOfOrderAllowed: true,
+    maxRetransmitNum: 0
+  };
+
   function Host(brokerUrl, options) {
     var host = this;
 
     options = options || {};
     options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
+    options['connectionTimeout'] = (undefined !== options['connectionTimeout']) ? options['connectionTimeout'] : DEFAULT_CONNECTION_TIMEOUT;
+    options['pingTimeout'] = (undefined !== options['pingTimeout']) ? options['pingTimeout'] : DEFAULT_PING_TIMEOUT;
 
     host.connected = false;
     host.reliable = {
@@ -288,32 +301,83 @@ define(['module'], function(module) {
     host.onconnect = null;
     host.ondisconnect = null;
     host.onerror = null;
+    host.close = function(reason) {
+      console.log('host disconnect (', reason, ')');
+    };
 
     var responder = new Responder(brokerUrl, options);
     responder.oncomplete = function(peerConnection) {
       console.log('responder.oncomplete', peerConnection);
+      // FIXME: remove this so we can accept multiple peers
       responder.close();
       peerConnection.ondatachannel = function(channel) {
+        var control;
+
+        var connectionTimer = null;
+        var pingTimer = null;
+        var messageFlag = false;  
+        function handleConnectionTimeoutExpired() {
+          if(!messageFlag) {
+            console.log('sending ping');
+            control.send('PING');
+            connectionTimer = null;
+            pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
+          } else {
+            messageFlag = false;
+            connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          }          
+        };
+        function handlePingTimeoutExpired() {
+          pingTimer = null;
+          if(!messageFlag) {
+            host.close('timeout');
+          } else {
+            messageFlag = false;
+            connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          }          
+        };
+
         if('reliable' === channel.label) {
           host.reliable.channel = channel;
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            callback(host.reliable, 'onmessage', [event]);
+          };
         } else if('unreliable' === channel.label) {
           host.unreliable.channel = channel;
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            callback(host.unreliable, 'onmessage', [event]);
+          };
+        } else if('control' === channel.label) {
+          control = channel;
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            var message = event.data;
+            if('PING' === message) {
+              console.log('received ping, sending pong');
+              control.send('PONG');
+            } else {
+              console.log('received pong');
+            }
+          };
         } else {
           console.error('unknown data channel' + channel.label);
           return;
         }
-        if(host.reliable.channel && host.unreliable.channel) {
+
+        if('reliable' === channel.label || 'unreliable' === channel.label) {
+          channel.binaryType = options['binaryType'];
+        } else if('control' === channel.label) {
+          channel.binaryType = 'arraybuffer';
+        }
+
+        if(host.reliable.channel && 
+           host.unreliable.channel && control) {
           host.connected = true;
+          connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
           callback(host, 'onconnect', []);
         }
-        channel.binaryType = options['binaryType'];
-        channel.onmessage = function(event) {
-          if(channel.reliable) {
-            callback(host.reliable, 'onmessage', [event]);
-          } else {
-            callback(host.unreliable, 'onmessage', [event]);
-          }
-        };
       };
       peerConnection.onstatechange = function(event) {
         console.log('responder state change', event);
@@ -328,17 +392,13 @@ define(['module'], function(module) {
     };
   };
 
-  var RELIABLE_CHANNEL_OPTIONS = {};
-  var UNRELIABLE_CHANNEL_OPTIONS = {
-    outOfOrderAllowed: true,
-    maxRetransmitNum: 0
-  };
-
   function Peer(brokerUrl, sid, options) {
     var peer = this;
 
     options = options || {};
     options['binaryType'] = (undefined !== options['binaryType']) ? options['binaryType'] : 'arraybuffer';
+    options['connectionTimeout'] = (undefined !== options['connectionTimeout']) ? options['connectionTimeout'] : DEFAULT_CONNECTION_TIMEOUT;
+    options['pingTimeout'] = (undefined !== options['pingTimeout']) ? options['pingTimeout'] : DEFAULT_PING_TIMEOUT;
 
     peer.connected = false;
     peer.reliable = {
@@ -353,6 +413,9 @@ define(['module'], function(module) {
     peer.onconnect = null;
     peer.ondisconnect = null;
     peer.onerror = null;
+    peer.close = function(reason) {
+      console.log('peer disconnect (', reason, ')');
+    };
 
     var initiator = new Initiator(brokerUrl, sid);
     initiator.oncomplete = function(peerConnection) {
@@ -362,28 +425,66 @@ define(['module'], function(module) {
         var unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
         var control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
 
+        var connectionTimer = null;
+        var pingTimer = null;
+        var messageFlag = false;  
+        function handleConnectionTimeoutExpired() {
+          if(!messageFlag) {
+            console.log('sending ping');
+            control.send('PING');
+            connectionTimer = null;
+            pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
+          } else {
+            messageFlag = false;
+            connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          }          
+        };
+        function handlePingTimeoutExpired() {
+          if(!messageFlag) {
+            peer.close('timeout');
+          } else {
+            messageFlag = false;
+            connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          }          
+        };
+
         reliable.binaryType = options['binaryType'];
         unreliable.binaryType = options['binaryType'];
+        control.bineryType = 'arraybuffer';
 
         var opened = 0;
         function handleOpen(event) {
-          if(2 === ++ opened) {
+          if(3 === ++ opened) {
             peer.connected = true;
+            connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout'] + options['connectionTimeout']/2);
             callback(peer, 'onconnect', []);
           }
         }
         reliable.onopen = handleOpen;
         unreliable.onopen = handleOpen;
+        control.onopen = handleOpen;
 
         reliable.onmessage = function(event) {
+          messageFlag = true;
           callback(peer.reliable, 'onmessage', [event]);
         };
         unreliable.onmessage = function(event) {
+          messageFlag = true;
           callback(peer.unreliable, 'onmessage', [event]);
-        }
+        };
+        control.onmessage = function(event) {
+          messageFlag = true;
+          var message = event.data;
+          if('PING' === message) {
+            console.log('received ping, sending pong');
+            control.send('PONG');
+          } else {
+            console.log('received pong');
+          }
+        };
 
         peer.reliable.channel = reliable;
-        peer.unreliable.channel = unreliable;
+        peer.unreliable.channel = unreliable;      
       };
       peerConnection.onstatechange = function(event) {
         console.log('initiator state change', event);
