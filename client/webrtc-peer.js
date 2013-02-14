@@ -320,7 +320,7 @@ define(['module'], function(module) {
           window.clearInterval(pingTimer);
         host.peerConnection = null;
         host.connected = false;
-        callback(host.unreliable, 'ondisconnect', [event]);
+        callback(host, 'ondisconnect', []);
       }
     };
 
@@ -460,7 +460,7 @@ define(['module'], function(module) {
           window.clearInterval(pingTimer);
         peer.peerConnection = null;
         peer.connected = false;
-        callback(host.unreliable, 'ondisconnect', [event]);
+        callback(peer, 'ondisconnect', []);
       }
     };
 

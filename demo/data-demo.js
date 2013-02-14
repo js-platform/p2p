@@ -89,6 +89,9 @@ if(hosting) {
     var div = document.getElementById('host');
     div.innerHTML = '';
   };
+  host.ondisconnect = function() {
+    log('disconnected');
+  };
   host.onerror = function(error) {
     console.error(error);
   };  
@@ -102,13 +105,16 @@ if(hosting) {
       log("<other> " + msg.data);
     };
   };
+  peer.ondisconnect = function() {
+    log('disconnected');
+  };
   peer.onerror = function(error) {
     console.error(error);
   };  
 }
 
 window.onbeforeunload = function() {
-  if(conn.connected) {
+  if(conn && conn.connected) {
     conn.close();
   }
 };
