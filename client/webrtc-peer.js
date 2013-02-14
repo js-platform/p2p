@@ -288,6 +288,7 @@ define(['module'], function(module) {
     options['pingTimeout'] = (undefined !== options['pingTimeout']) ? options['pingTimeout'] : DEFAULT_PING_TIMEOUT;
 
     host.connected = false;
+    host.peerConnection = null;
     host.reliable = {
       channel: null,
       onmessage: null
@@ -296,31 +297,49 @@ define(['module'], function(module) {
       channel: null,
       onmessage: null
     };
+    var control = null;
 
     host.onready = null;
     host.onconnect = null;
     host.ondisconnect = null;
     host.onerror = null;
-    host.close = function(reason) {
-      console.log('host disconnect (', reason, ')');
+    host.close = function() {
+      if(host.connected) {
+        console.log('host quit');
+        control.send('QUIT');
+        shutdown();
+      }
     };
+    function shutdown() {      
+      if(host.connected) {
+        console.log('host disconnect');
+        host.peerConnection.close();
+        if(connectionTimer)
+          window.clearInterval(connectionTimer);
+        if(pingTimer)
+          window.clearInterval(pingTimer);
+        host.peerConnection = null;
+        host.connected = false;
+        callback(host.unreliable, 'ondisconnect', [event]);
+      }
+    };
+
+    var messageFlag = false;
+    var connectionTimer = null;
+    var pingTimer = null;
 
     var responder = new Responder(brokerUrl, options);
     responder.oncomplete = function(peerConnection) {
       console.log('responder.oncomplete', peerConnection);
+      host.peerConnection = peerConnection;
       // FIXME: remove this so we can accept multiple peers
       responder.close();
       peerConnection.ondatachannel = function(channel) {
-        var control;
-
-        var connectionTimer = null;
-        var pingTimer = null;
-        var messageFlag = false;  
         function handleConnectionTimeoutExpired() {
-          if(!messageFlag) {
+          connectionTimer = null;
+          if(false === messageFlag) {
             console.log('sending ping');
-            control.send('PING');
-            connectionTimer = null;
+            control.send('PING');            
             pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
           } else {
             messageFlag = false;
@@ -329,36 +348,45 @@ define(['module'], function(module) {
         };
         function handlePingTimeoutExpired() {
           pingTimer = null;
-          if(!messageFlag) {
-            host.close('timeout');
+          if(false === messageFlag) {
+            shutdown();
           } else {
             messageFlag = false;
             connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
-          }          
+          }
         };
 
         if('reliable' === channel.label) {
           host.reliable.channel = channel;
           channel.onmessage = function(event) {
             messageFlag = true;
-            callback(host.reliable, 'onmessage', [event]);
+            if(host.connected) {
+              callback(host.reliable, 'onmessage', [event]);
+            }
           };
         } else if('unreliable' === channel.label) {
           host.unreliable.channel = channel;
           channel.onmessage = function(event) {
             messageFlag = true;
-            callback(host.unreliable, 'onmessage', [event]);
+            if(host.connected) {
+              callback(host.unreliable, 'onmessage', [event]);
+            }
           };
         } else if('control' === channel.label) {
           control = channel;
           channel.onmessage = function(event) {
             messageFlag = true;
-            var message = event.data;
-            if('PING' === message) {
-              console.log('received ping, sending pong');
-              control.send('PONG');
-            } else {
-              console.log('received pong');
+            if(host.connected) {
+              var message = event.data;
+              if('PING' === message) {
+                console.log('received ping, sending pong');
+                control.send('PONG');
+              } else if('PONG' === message) {
+                console.log('received pong');
+              } else if('QUIT' === message) {
+                console.log('received quit');
+                shutdown();
+              }
             }
           };
         } else {
@@ -401,6 +429,7 @@ define(['module'], function(module) {
     options['pingTimeout'] = (undefined !== options['pingTimeout']) ? options['pingTimeout'] : DEFAULT_PING_TIMEOUT;
 
     peer.connected = false;
+    peer.peerConnection = null;
     peer.reliable = {
       channel: null,
       onmessage: null
@@ -409,30 +438,50 @@ define(['module'], function(module) {
       channel: null,
       onmessage: null
     };
+    var control = null;
 
     peer.onconnect = null;
     peer.ondisconnect = null;
     peer.onerror = null;
-    peer.close = function(reason) {
-      console.log('peer disconnect (', reason, ')');
+    peer.close = function() {
+      if(peer.connected) {
+        console.log('peer quit');
+        control.send('QUIT');
+        shutdown();
+      }
     };
+    function shutdown() {      
+      if(peer.connected) {
+        console.log('peer disconnect');
+        peer.peerConnection.close();
+        if(connectionTimer)
+          window.clearInterval(connectionTimer);
+        if(pingTimer)
+          window.clearInterval(pingTimer);
+        peer.peerConnection = null;
+        peer.connected = false;
+        callback(host.unreliable, 'ondisconnect', [event]);
+      }
+    };
+
+    var messageFlag = false;
+    var connectionTimer = null;
+    var pingTimer = null;
 
     var initiator = new Initiator(brokerUrl, sid);
     initiator.oncomplete = function(peerConnection) {
       console.log('initiator.oncomplete', peerConnection);
+      peer.peerConnection = peerConnection;
       peerConnection.onconnection = function() {
         var reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
         var unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
-        var control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
-
-        var connectionTimer = null;
-        var pingTimer = null;
-        var messageFlag = false;  
+        control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
+      
         function handleConnectionTimeoutExpired() {
-          if(!messageFlag) {
+          connectionTimer = null;
+          if(false === messageFlag) {
             console.log('sending ping');
             control.send('PING');
-            connectionTimer = null;
             pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
           } else {
             messageFlag = false;
@@ -440,8 +489,9 @@ define(['module'], function(module) {
           }          
         };
         function handlePingTimeoutExpired() {
-          if(!messageFlag) {
-            peer.close('timeout');
+          pingTimer = null;
+          if(false === messageFlag) {
+            shutdown();
           } else {
             messageFlag = false;
             connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
@@ -466,20 +516,29 @@ define(['module'], function(module) {
 
         reliable.onmessage = function(event) {
           messageFlag = true;
-          callback(peer.reliable, 'onmessage', [event]);
+          if(peer.connected) {
+            callback(peer.reliable, 'onmessage', [event]);
+          }
         };
         unreliable.onmessage = function(event) {
           messageFlag = true;
-          callback(peer.unreliable, 'onmessage', [event]);
+          if(peer.connected) {
+            callback(peer.unreliable, 'onmessage', [event]);
+          }
         };
         control.onmessage = function(event) {
           messageFlag = true;
-          var message = event.data;
-          if('PING' === message) {
-            console.log('received ping, sending pong');
-            control.send('PONG');
-          } else {
-            console.log('received pong');
+          if(peer.connected) {
+            var message = event.data;
+            if('PING' === message) {
+              console.log('received ping, sending pong');
+              control.send('PONG');
+            } else if('PONG' === message) {
+              console.log('received pong');
+            } else if('QUIT' === message) {
+              console.log('received quit');
+              shutdown();
+            }
           }
         };
 

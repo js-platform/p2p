@@ -57,6 +57,10 @@ var Query = {
   }
 };
 
+function babble() {
+  setInterval(function() {conn.reliable.channel.send('X');}, 4000);
+}
+
 if(hosting) {  
   options = {
     'session': {
@@ -100,8 +104,14 @@ if(hosting) {
   };
   peer.onerror = function(error) {
     console.error(error);
-  };
+  };  
 }
+
+window.onbeforeunload = function() {
+  if(conn.connected) {
+    conn.close();
+  }
+};
 
 document.getElementById("chatinput").addEventListener("keyup", function(e) {
   if (conn && e.keyCode == 13 && conn.connected) {
