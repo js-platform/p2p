@@ -112,8 +112,8 @@ exports.list = function list(req, res) {
 		});  	
 	});
 
-	var accepts = req.headers['accept'];
-	if(!'text/event-stream' === accepts) {		
+	var accepts = req.headers['accept'].split(',');
+	if(accepts.indexOf('text/event-stream') < 0) {
 		res.send(200, JSON.stringify(result));
 	} else {
 		var lid = mkguid();

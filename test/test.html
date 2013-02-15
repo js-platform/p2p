@@ -13,8 +13,17 @@
 
 var broker = 'http://localhost:3000';
 
-var bc = new RTCPeer.BrokerChannel(broker);
-bc.createSession();
+var peer = new RTCPeer(broker);
+peer.onerror = function(error) {
+	console.error(error);
+};
+peer.onready = function() {
+	console.log('ready');
+	peer.host();
+};
+peer.onhost = function(sid) {
+	console.log('hosting', sid);
+};
 
 </script>
 </html>
