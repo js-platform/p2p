@@ -1,0 +1,20 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+	<div id="host"></div>
+  <pre id="chat"></pre>
+  <input type="text" id="chatinput">
+</body>
+<script src="../client/wrtcp.js"></script>
+<script>
+
+var broker = 'http://localhost:3000';
+
+var bc = new RTCPeer.BrokerChannel(broker);
+bc.createSession();
+
+</script>
+</html>

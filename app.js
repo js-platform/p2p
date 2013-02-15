@@ -47,7 +47,7 @@ app.get('/channel', broker.channel);
 app.get('/list', broker.list);
 app.get('/session/:sid', broker.show);
 app.post('/session', broker.session);
-app.post('/session/:sid/update', broker.update);
+app.post('/session/delete', broker.delete_session);
 app.post('/send/:id', broker.send);
 
 var httpsOptions = {

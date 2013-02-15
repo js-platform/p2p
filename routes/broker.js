@@ -26,6 +26,12 @@ var channels = {};
 var sessions = {};
 var listing = {};
 
+setInterval(function() {
+	console.info(' channels: ' + Object.keys(channels).length + 
+							 ' sessions: ' + Object.keys(sessions).length + 
+							 ' listing: ' + Object.keys(listing).length);
+}, 60000);
+
 function tocid(id) {
 	if(channels.hasOwnProperty(id)) {
 		return id;
@@ -74,7 +80,7 @@ exports.channel = function channel(req, res) {
 	channels[cid] = channel;
 
 	res.writeHead(201, mkssehdr());
-	res.write(mksseevt('channel', 
+	res.write(mksseevt('control', 
 		{'cid': cid, 
 		 'key': key}
 	));
@@ -222,7 +228,7 @@ exports.session = function session(req, res) {
 	return r;
 };
 
-exports.update = function update(req, res) {
+exports.delete_session = function delete_session(req, res) {
 	var body = req.body;
 
 	if(!body['cid']) {
@@ -244,15 +250,19 @@ exports.update = function update(req, res) {
 		return res.send(404, 'session not found');
 	}
 
-	body['tags'] === undefined ? [] : body['tags'];
-	body['list'] === undefined ? false : body['list'];
-	body['metadata'] === undefined ? {} : body['metadata'];
-
 	var session = sessions[sid];
+	var lids = Object.keys(listing);
+	lids.forEach(function(lid) {
+		var lister = listing[lid];
+		var result = [sid];
+		var application = lister['application'];
+		if(application && application !== session['application']) return;
 
-	session['tags'] = body['tags'];
-	session['list'] = body['list'];
-	session['metadata'] = body['metadata'];
+		lister.res.write(mksseevt('delete', 
+			result
+		));
+	});
+	delete sessions[sid];
 
 	return res.send(200, 'OK');
 };
