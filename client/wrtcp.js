@@ -2,7 +2,7 @@
 define(['module'], function(module) {
 
 	var RTCPeerConnection;
-	if(!window.RTCPeerConnection) {
+	if(/*!window.RTCPeerConnection*/ true) {
 		if(window.mozRTCPeerConnection)
 			RTCPeerConnection = window.mozRTCPeerConnection;
 		else if(window.webkitRTCPeerConnection)
@@ -44,276 +44,6 @@ define(['module'], function(module) {
     outOfOrderAllowed: true,
     maxRetransmitNum: 0
   };
-
-/*
-  function BrokerChannel(broker) {
-  	var that = this;
-  	this.broker = broker;
-  	this.channel = null;
-  	this.sid = null;
-  	this.cid = null;
-  	this.key = null;
-  	this.connected = false;
-  	this.session = false;
-
-  	this.onconnect = null; // args: -
-  	this.ondisconnect = null; // args: reason
-  	this.onmessage = null; // args: to, from, message
-  	this.onsessioncreated = null; // args: sid
-  	this.onsessiondeleted = null; // args: -
-  	this.onerror = null; // args: error
-
-  	var channel = this.channel = new EventSource(this.broker + '/channel');
-  	channel.addEventListener('error', function(event) {
-      if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
-        // Connection was closed.          
-        console.log('broker channel closed');
-        channel.close();
-        that.connected = false;
-        callback(that, 'ondisconnect', []);        
-      } else {
-      	fail(that, 'onerror', event.target.readyState);
-      }
-    }, false);
-    channel.addEventListener('control', function(event) {
-      console.log('broker control message');
-      var data = JSON.parse(event.data);
-      that.cid = data['cid'];
-      that.key = data['key'];
-
-      that.connected = true;
-      callback(that, 'onconnect', []);
-    }, false);
-    channel.addEventListener('message', function(event) {
-      console.log('broker application message');
-      var data = JSON.parse(event.data);
-      var to = data['target'];
-      var from = data['origin'];
-      var message = data['message'];
-
-      callback(that, 'onmessage', [to, from, message]);
-    }, false);
-  };
-  BrokerChannel.prototype.send = function send(to, from, message) {
-  	var that = this;
-  	var url = this.broker + '/send/' + to;
-  	var xhr = new XMLHttpRequest();
-
-    var request = {
-      'origin': from,
-      'key': that.key,
-      'message': message
-    };
-
-    xhr.open('POST', url);
-    xhr.setRequestHeader('content-type', 'application/json');
-    xhr.onreadystatechange = function() {
-      if(4 !== xhr.readyState) return;
-      if(!(200 === xhr.status || 201 === xhr.status)) {
-      	fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
-      }
-    };
-    xhr.send(JSON.stringify(request));
-  };
-  BrokerChannel.prototype.close = function close() {
-  	this.connected = false;
-  	this.channel.close();
-  	callback(this, 'ondisconnect', []);
-  };
-  BrokerChannel.prototype.createSession = function createSession(options) {
-  	if(this.session)
-  		throw new Error('session already exists');
-  	options = options || {};
-  	var that = this;
-  	var url = this.broker + '/session';
-    var xhr = new XMLHttpRequest();
-    var request = {
-      'cid': this.cid,
-      'key': this.key,
-      'list': options['list'],
-      'metadata': options['metadata'],
-      'url': options['url'] || window.location.toString(),
-      'authenticate': options['authenticate'],
-      'application': options['application']
-    };
-
-    xhr.open('POST', url);
-    xhr.setRequestHeader('content-type', 'application/json');
-    xhr.onreadystatechange = function() {
-      if(4 !== xhr.readyState) return;
-      if(!(200 === xhr.status || 201 === xhr.status)) {
-      	fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
-      }
-
-      var response = JSON.parse(xhr.responseText);
-      var sid = that.sid = response['sid'];
-
-      that.session = true;
-      callback(that, 'onsessioncreated', [sid]);
-    };
-    xhr.send(JSON.stringify(request));
-  };
-  BrokerChannel.prototype.deleteSession = function deleteSession() {
-		if(!this.session)
-			throw new Error('no session');
-  	var that = this;
-		var url = this.brokerChannel.broker + '/session/delete';
-    var xhr = new XMLHttpRequest();
-    var request = {
-      'cid': this.brokerChannel.cid,
-      'key': this.brokerChannel.key
-    };
-
-  	xhr.open('POST', url);
-    xhr.setRequestHeader('content-type', 'application/json');
-    xhr.onreadystatechange = function() {
-      if(4 !== xhr.readyState) return;
-      if(!(200 === xhr.status || 201 === xhr.status)) {
-      	fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
-      }
-
-      callback(that, 'onsessiondeleted', []);
-    };
-    xhr.send(JSON.stringify(request));
-  };
-
-  function WebRTCHandshake() {
-  	this.complete = false;
-  	this.message = null;
-  	this.peerConnection = null;
-  	this.oncomplete = null;
-  	this.onerror = null;
-  };
-  WebRTCHandshake.prototype.initialize = function initialize() {
-  	// create new offer
-  };
-  WebRTCHandshake.prototype.process = function process(message) {
-  	// update handshake state
-  };  
-
-  var nextConnectionDescriptor = 1;
-	function Connection(options) {
-		this.connected = false;
-		this.descriptor = nextConnectionDescriptor ++;
-
-		this.reliable = null;
-		this.unreliable = null;
-		this.control = null;
-
-		this.onconnect = null; // args: -
-		this.ondisconnect = null; // args: reason
-		this.onerror = null; // args: error
-	};
-	Connection.prototype.close = function close() {
-
-	};
-
-	function _handleBrokerChannelMessage(peer, to, from, message) {
-		var handshake;
-		if(!peer.pending.hasOwnProperty(from)) {
-			handshake = peer.pending[from] = new WebRTCHandshake();
-			handshake.oncomplete = function(connection) {
-				delete peer.pending[from];
-				peer.connections[connection.descriptor] = connection;
-				callback(peer, 'onconnect', [connection]);
-			};
-			handshake.onerror = function(error) {
-				delete peer.pending[from];
-				callback(peer, 'onerror', [error])
-			};
-		} else {
-			handshake = peer.pending[from];
-		}
-		var result = handshake.process(message);
-		if(result) {
-			// 'to' and 'from' are inverted because we're replying
-			peer.brokerChannel.send(from, to, result);
-		}
-	};
-	function _initBrokerChannel(peer) {
-		if(peer.brokerChannel)
-			return;
-		var brokerChannel = new BrokerChannel(peer.broker);
-
-		brokerChannel.onmessage = _handleBrokerChannelMessage.bind(undefined, peer);
-		brokerChannel.onconnect = function() {
-			callback(peer, 'onready', []);
-		};
-
-		peer.brokerChannel = brokerChannel;
-	};
-	function _acquireBrokerClient(peer) {
-		_initBrokerChannel(peer);
-		++ peer.brokerClients;
-	};
-	function _releaseBrokerClient(peer) {
-		-- peer.brokerClients;
-		if(0 === peer.brokerClients) {
-			peer.brokerChannel.close();
-			peer.brokerChannel = null;
-		}
-	};
-	function Peer(broker, options) {
-		var that = this;
-		this.broker = broker;		
-		this.options = options;
-		this.connections = {};
-		this.pending = {};
-		this.brokerClients = 0;
-
-		this.onready = null;
-		this.onlisten = null;
-		this.onignore = null;
-		this.onpending = null; // args: handshake
-		this.onconnect = null; // args: connection
-		this.onerror = null; // args: error
-
-		this.brokerChannel = null;
-	};
-	Peer.prototype.listen = function listen(options) {
-		var that = this;
-		_initBrokerChannel(this);
-
-		if(this.brokerChannel.session)
-			throw new Error('session already exists')
-		this.brokerChannel.createSession(options)
-		this.brokerChannel.onsessioncreated = function(sid) {
-			// FIXME: it's more useful to return the full client URL here
-			_acquireBrokerClient(that);
-			callback(that, 'onlisten', [sid]);
-		};
-		this.brokerChannel.onsessiondeleted = function() {
-			_releaseBrokerClient(that);
-			callback(that, 'onignore', []);
-		};
-	};
-	Peer.prototype.ignore = function ignore() {
-		if(!this.brokerChannel.session)
-			throw new Error('no session');
-
-		this.brokerSession.close();
-	};
-	Peer.prototype.connect = function connect(sid, options) {
-		var that = this;
-		_initBrokerChannel(this);
-
-		var handshake = this.pending[sid] = new WebRTCHandshake();
-		handshake.oncomplete = function(connection) {
-			delete that.pending[from];
-			that.connections[connection.descriptor] = connection;
-			callback(that, 'onconnect', [connection]);
-		};
-		handshake.onerror = function(error) {
-			delete that.pending[from];
-			callback(that, 'onerror', [error])
-		};
-		var result = handshake.initialize();
-		if(result) {
-			this.brokerChannel.send(sid, this.cid, result);
-		}
-	};
-*/
-	// return RTCPeer;
 
 	function Broker(brokerUrl) {
 		this.brokerUrl = brokerUrl;
@@ -477,36 +207,271 @@ define(['module'], function(module) {
     xhr.send(JSON.stringify(request));
 	};
 
-	function WebRTCConnectProtocol() {
-		this.oncomplete = null;
-	};
-	WebRTCConnectProtocol.prototype.process = function process(message) {
+	var nextDataConnectionPort = 1;
+	function WebRTCConnectProtocol(options) {
+		this.onmessage = null;
+		this.oncomplete = null;		
+		this.onerror = null;
+		this.complete = false;
+		this.options = options;
+		this.options.ports = {
+			local: nextDataConnectionPort ++,
+			remote: null
+		};
 
+		this.peerConnection = null;
+	};	
+	WebRTCConnectProtocol.prototype.process = function process(message, cb) {
+		var that = this;		
+		if(undefined === message) {
+			that.peerConnection = new RTCPeerConnection();
+			getUserMedia({audio: true, fake: true}, function(stream) {
+				that.peerConnection.addStream(stream);
+				that.peerConnection.createOffer(function(offer) {
+					var message = {
+						'offer': offer.sdp,
+						'port': that.options.ports.local
+					};
+					cb(message);
+				}, function(error) {
+					fail(that, 'onerror', error);
+				});
+			}, function(error) {
+				fail(that, 'onerror', error);
+			});
+		} else if(message.hasOwnProperty('offer')) {
+			var offer = message['offer'];
+			that.options.ports.remote = message['port'];
+			that.peerConnection = new RTCPeerConnection();			
+			getUserMedia({audio: true, fake: true}, function(stream) {
+				that.peerConnection.addStream(stream);
+				that.peerConnection.setRemoteDescription({
+					'type': 'offer',
+          'sdp': offer
+				}, function() {
+					that.peerConnection.createAnswer(function(answer) {
+						that.peerConnection.setLocalDescription(answer, function() {
+							var message = {
+								'answer': answer.sdp,
+								'port': that.options.ports.local
+							};							
+							cb(message);
+							var connection = new Connection(that.peerConnection, that.options, false);
+							callback(that, 'oncomplete', [connection]);
+						}, function(error) {
+							fail(that, 'onerror', error);
+						});
+					}, function(error) {
+						fail(that, 'onerror', error);
+					});
+				}, function(error) {
+					fail(that, 'onerror', error);
+				});
+			}, function(error) {
+				fail(that, 'onerror', error);
+			});
+		} else if(message.hasOwnProperty('answer')) {
+			var answer = message['answer'];
+			that.options.ports.remote = message['port'];
+			that.peerConnection.setRemoteDescription({
+				'type': 'answer',
+				'sdp': answer
+			}, function() {
+				cb();
+				var connection = new Connection(that.peerConnection, that.options, true);
+				callback(that, 'oncomplete', [connection]);
+			}, function(error) {
+				fail(that, 'onerror', error);
+			});
+		}
 	};
 
 	var nextConnectionId = 1;
-	function Connection(peerConnection) {
+	function Connection(peerConnection, options, doSetup) {
+		var that = this;
 		this.id = nextConnectionId ++;
 		this.connected = false;
 
+		this.onconnect = null;
 		this.ondisconnect = null;
 		this.onerror = null;
 
-		this.peerConnection = null;
+		this.peerConnection = peerConnection;
 
 		// DataChannels
-		this.reliable = null;
-		this.unreliable = null;
-		this._control = null;	// for internal use only
+		var reliable = null;
+		var unreliable = null;
+		var control = null;	// for internal use only		
+
+		this.reliable = {
+			send: null,
+			onmessage: null,
+			_channel: null
+		};
+		this.unreliable = {
+			send: null,
+			onmessage: null,
+			_channel: null
+		};
+
+		var opened = 0;
+		function handleOpen(event) {
+			++ opened;
+			if(3 === opened) {
+				that.connected = true;
+				connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+				callback(that, 'onconnect', []);
+			}
+		};
+
+		var messageFlag = false;
+		var connectionTimer = null;
+    var pingTimer = null;
+		function handleConnectionTimeoutExpired() {
+      connectionTimer = null;
+      if(false === messageFlag) {
+        console.log('sending ping');
+        control.send('PING');            
+        pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
+      } else {
+        messageFlag = false;
+        connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+      }          
+    };
+    function handlePingTimeoutExpired() {
+      pingTimer = null;
+      if(false === messageFlag) {
+        that.close();
+      } else {
+        messageFlag = false;
+        connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+      }
+    };
+
+		if(doSetup) {
+			this.peerConnection.onconnection = function() {
+				reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
+        unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
+        control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
+
+        reliable.binaryType = options['binaryType'];
+        unreliable.binaryType = options['binaryType'];
+        control.bineryType = 'arraybuffer';
+
+        reliable.onopen = handleOpen;
+        unreliable.onopen = handleOpen;
+        control.onopen = handleOpen;
+
+        that.reliable.send = function(message) {
+        	reliable.send(message);
+        };
+        that.unreliable.send = function(message) {
+        	unreliable.send(message);
+        };
+
+        that.reliable._channel = reliable;
+        that.unreliable._channel = unreliable;
+
+        reliable.onmessage = function(event) {
+          messageFlag = true;
+          if(that.connected) {
+            callback(that.reliable, 'onmessage', [event]);
+          }
+        };       
+        unreliable.onmessage = function(event) {
+          messageFlag = true;
+          if(that.connected) {
+            callback(that.unreliable, 'onmessage', [event]);
+          }
+        };
+        control.onmessage = function(event) {
+          messageFlag = true;
+          if(that.connected) {
+            var message = event.data;
+            if('PING' === message) {
+              console.log('received ping, sending pong');
+              control.send('PONG');
+            } else if('PONG' === message) {
+              console.log('received pong');
+            } else if('QUIT' === message) {
+              console.log('received quit');
+              that.close();
+            }
+          }
+        };        
+			};
+			that.peerConnection.connectDataConnection(options.ports.local, options.ports.remote);
+		} else {
+			this.peerConnection.ondatachannel = function(channel) {
+				if('reliable' === channel.label) {
+          reliable = that.reliable._channel = channel;
+          that.reliable.send = function(message) {
+          	channel.send(message);
+          };
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            if(that.connected) {
+              callback(that.reliable, 'onmessage', [event]);
+            }
+          };
+        } else if('unreliable' === channel.label) {
+          unreliable = that.unreliable._channel = channel;
+          that.unreliable.send = function(message) {
+          	channel.send(message);
+          };
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            if(that.connected) {
+              callback(that.unreliable, 'onmessage', [event]);
+            }
+          };
+        } else if('control' === channel.label) {
+          control = channel;
+          channel.onmessage = function(event) {
+            messageFlag = true;
+            if(that.connected) {
+              var message = event.data;
+              if('PING' === message) {
+                console.log('received ping, sending pong');
+                control.send('PONG');
+              } else if('PONG' === message) {
+                console.log('received pong');
+              } else if('QUIT' === message) {
+                console.log('received quit');
+                that.close();
+              }
+            }
+          };
+        } else {
+          return fail(that, 'onerror', 'unknown data channel' + channel.label);
+        }
+
+        if('reliable' === channel.label || 'unreliable' === channel.label) {
+          channel.binaryType = binaryType;
+        } else if('control' === channel.label) {
+          channel.binaryType = 'arraybuffer';
+        }
+
+        if(reliable && unreliable && control) {
+          that.connected = true;
+          connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          callback(that, 'onconnect', []);
+        }
+			};
+			that.peerConnection.connectDataConnection(options.ports.local, options.ports.remote);
+		}
 	};
 	Connection.prototype.close = function close() {
-
+		console.log('close connection');
 	};
 	
 	function Peer(brokerUrl, options) {
 		var that = this;
 		this.brokerUrl = brokerUrl;
-		this.options = options || {};
+		this.options = options = options || {};
+		options['binaryType'] = options['binaryType'] || 'arraybuffer';
+		options['connectionTimeout'] = options['connectionTimeout'] || 10 * ONE_SECOND;
+		options['pingTimeout'] = options['pingTimeout'] || 1 * ONE_SECOND;
 
 		this.onconnect = null;
 		this.onpending = null;
@@ -532,17 +497,20 @@ define(['module'], function(module) {
 		this.broker.onunhost = function() {
 			callback(that, 'onunhost', []);
 		}
+		this.broker.onmessage = _handleBrokerMessage.bind(this);
 		this.broker.connect();		
 	};
-	Peer.prototype._handleBrokerMessage = function _handleBrokerMessage(to, from, message) {
+	function _handleBrokerMessage(to, from, message) {
 		var that = this;
 		var handshake;
 		if(!that.pending.hasOwnProperty(from)) {
-			handshake = that.pending[from] = new WebRTCConnectProtocol();
+			handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
 			handshake.oncomplete = function(connection) {
-				delete that.pending[from];
-				that.connections[connection.id] = connection;
-				callback(that, 'onconnect', [connection]);
+				delete that.pending[from];				
+				connection.onconnect = function() {
+					that.connections[connection.id] = connection;
+					callback(that, 'onconnect', [connection]);
+				};
 			};
 			handshake.onerror = function(error) {
 				delete that.pending[from];
@@ -551,11 +519,12 @@ define(['module'], function(module) {
 		} else {
 			handshake = that.pending[from];
 		}
-		var result = handshake.process(message);
-		if(result) {
-			// 'to' and 'from' are inverted because we're replying
-			that.broker.send(from, to, result);
-		}
+		handshake.process(message, function(result) {
+			if(result) {
+				// 'to' and 'from' are inverted because we're replying
+				that.broker.send(from, to, result);
+			}
+		});
 	};
 	Peer.prototype.host = function host(options) {
 		var that = this;
@@ -573,22 +542,29 @@ define(['module'], function(module) {
 			return fail(that, 'onerror', e);
 		}
 	};
-	Peer.prototype.connect = function connect(sid, options) {
+	Peer.prototype.connect = function connect(sid) {
 		var that = this;
-		var handshake = this.pending[sid] = new WebRTCConnectProtocol();
+
+		if(that.pending.hasOwnProperty(sid))
+			throw new Error('already connecting to this host');
+
+		var handshake = this.pending[sid] = new WebRTCConnectProtocol(that.options);
 		handshake.oncomplete = function(connection) {
-			delete that.pending[from];
-			that.connections[connection.id] = connection;
-			callback(that, 'onconnect', [connection]);
+			delete that.pending[sid];
+			connection.onconnect = function() {
+				that.connections[connection.id] = connection;
+				callback(that, 'onconnect', [connection]);
+			};
 		};
 		handshake.onerror = function(error) {
-			delete that.pending[from];
+			delete that.pending[sid];
 			callback(that, 'onerror', [error])
 		};
-		var result = handshake.process();
-		if(result) {
-			this.broker.send(sid, this.cid, result);
-		}
+		handshake.process(undefined, function(result) {
+			if(result) {				
+				that.broker.send(sid, that.broker.cid, result);		
+			}
+		});
 	};
 
 	return Peer;

@@ -4,7 +4,7 @@ function log(msg) {
 }
 
 var brokerSession = null;
-var brokerUrl = 'http://modeswit.ch:3000';
+var brokerUrl = 'http://localhost:3000';
 var hosting = true;
 var options;
 
@@ -21,96 +21,50 @@ if(window.location.search) {
 }
 
 console.log('broker', brokerUrl);
-var conn = undefined;
+var peer = new RTCPeer(brokerUrl);
+peer.onconnect = function(connection) {
+  log('connected');
+  conn = connection;
+  conn.ondisconnect = function() {
+    log('disconnected');
+  };
+  conn.onerror = function(error) {
+    console.error(error);
+  };
 
-var Query = {
-  parse: function parse(queryString) {
-    var result = {};
-    var parts = (undefined !== queryString) ? queryString.split('&') : [];
-    parts.forEach(function(part) {
-      var key = part.split('=')[0];
-      if(!result.hasOwnProperty(key))
-        result[key] = [];
-      var value = part.split('=')[1];
-      if(undefined !== value)
-        result[key].push(value);
-    });
-    return result;
-  },
-  defined: function defined(params, key) {
-    return (params.hasOwnProperty(key));
-  },
-  stringify: function stringify(params) {
-    var result = [];
-    Object.keys(params).forEach(function(param) {
-      var key = param;
-      var values = params[key];
-      if(values.length > 0) {
-        values.forEach(function(value) {
-          result.push(key + '=' + value);
-        });
-      } else {
-        result.push(key);
-      }
-    });
-    return result.join('&');
-  }
+  conn.reliable.onmessage = function(msg) {
+    log("<other> " + msg.data);
+  };
+
+  var div = document.getElementById('host');
+  div.innerHTML = '';
 };
-
-function babble() {
-  setInterval(function() {conn.reliable.channel.send('X');}, 4000);
-}
+var conn = null;
 
 if(hosting) {  
   options = {
-    'session': {
-      'application': 'data-demo'
-    }
+    'application': 'data-demo'
   };
-  var host = new WebRTC.Host(brokerUrl, options);
-  host.onready = function(sid) {
+  peer.onready = function() {
     console.log('ready');
+
+    peer.host(options);
+  };
+  peer.onhost = function(sid) {
+    console.log('hosting');
+
     var location = window.location.toString().split('?');
-    var params = Query.parse(location[1]);
-    params['webrtc-session'] = [sid];
-    location[1] = Query.stringify(params);
+    location[1] = location[1] || '';
+    var params = location[1].split('&');    
+    params.push('webrtc-session=' + sid);
+    location[1] = params.join('&');
     var url = location.join('?');
 
     var div = document.getElementById('host');
     div.innerHTML = '<a href="' + url + '">connect</a>';
-  };
-  host.onconnect = function() {
-    log('connected');
-    conn = host;
-    conn.reliable.onmessage = function(msg) {
-      log("<other> " + msg.data);
-    };
-
-    var div = document.getElementById('host');
-    div.innerHTML = '';
-  };
-  host.ondisconnect = function() {
-    log('disconnected');
-  };
-  host.onerror = function(error) {
-    console.error(error);
-  };  
+  }
 } else {
-  options = {};
-  var peer = new WebRTC.Peer(brokerUrl, brokerSession, options);
-  peer.onconnect = function() {
-    log('connected');
-    conn = peer;
-    conn.reliable.onmessage = function(msg) {
-      log("<other> " + msg.data);
-    };
-  };
-  peer.ondisconnect = function() {
-    log('disconnected');
-  };
-  peer.onerror = function(error) {
-    console.error(error);
-  };  
+  peer.connect(brokerSession);
 }
 
 window.onbeforeunload = function() {
@@ -123,7 +77,7 @@ document.getElementById("chatinput").addEventListener("keyup", function(e) {
   if (conn && e.keyCode == 13 && conn.connected) {
     var ci = document.getElementById("chatinput");
     log("<self> " + ci.value);
-    conn.reliable.channel.send(ci.value);
+    conn.reliable.send(ci.value);
     ci.value = "";
   }
 });

@@ -270,8 +270,8 @@ exports.delete_session = function delete_session(req, res) {
 exports.send = function send(req, res) {
 	var body = req.body;
 
-	var target_id = tocid(req.params['id']);
-	if(undefined === target_id) {
+	var target_cid = tocid(req.params['id']);
+	if(undefined === target_cid) {
 		return res.send(404, 'channel not found');
 	}
 	
@@ -282,16 +282,16 @@ exports.send = function send(req, res) {
 		return res.send(400, 'missing key');
 	}
 
-	var origin_cid = body['origin'];
+	var origin_cid = tocid(body['origin']);
 	var key = body['key'];
 	if(!channels.hasOwnProperty(origin_cid) || key !== channels[origin_cid]['key']) {
 		return res.send(400, 'invalid origin or key');
 	}
 
-	var channel = channels[target_id];
+	var channel = channels[target_cid];
 	var message = {
-		'origin': origin_cid,
-		'target': target_id,
+		'origin': body['origin'],
+		'target': req.params['id'],
 		'message': body['message']
 	};
 
