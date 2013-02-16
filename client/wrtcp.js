@@ -313,38 +313,40 @@ define(['module'], function(module) {
 			onmessage: null,
 			_channel: null
 		};
+		this._control = null;
 
 		var opened = 0;
 		function handleOpen(event) {
 			++ opened;
 			if(3 === opened) {
 				that.connected = true;
-				connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+				this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
 				callback(that, 'onconnect', []);
 			}
 		};
 
 		var messageFlag = false;
-		var connectionTimer = null;
-    var pingTimer = null;
+		this.connectionTimer = null;
+		this.pingTimer = null;
 		function handleConnectionTimeoutExpired() {
-      connectionTimer = null;
+      this.connectionTimer = null;
       if(false === messageFlag) {
         console.log('sending ping');
         control.send('PING');            
-        pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
+        this.pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
       } else {
         messageFlag = false;
-        connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+        this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
       }          
     };
     function handlePingTimeoutExpired() {
-      pingTimer = null;
+      this.pingTimer = null;
       if(false === messageFlag) {
+      	that.connected = false;
         that.close();
       } else {
         messageFlag = false;
-        connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+        this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
       }
     };
 
@@ -371,6 +373,7 @@ define(['module'], function(module) {
 
         that.reliable._channel = reliable;
         that.unreliable._channel = unreliable;
+        that._control = control;
 
         reliable.onmessage = function(event) {
           messageFlag = true;
@@ -426,7 +429,7 @@ define(['module'], function(module) {
             }
           };
         } else if('control' === channel.label) {
-          control = channel;
+          control = that._control = channel;
           channel.onmessage = function(event) {
             messageFlag = true;
             if(that.connected) {
@@ -438,6 +441,7 @@ define(['module'], function(module) {
                 console.log('received pong');
               } else if('QUIT' === message) {
                 console.log('received quit');
+                that.connected = false;
                 that.close();
               }
             }
@@ -454,7 +458,7 @@ define(['module'], function(module) {
 
         if(reliable && unreliable && control) {
           that.connected = true;
-          connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+          this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
           callback(that, 'onconnect', []);
         }
 			};
@@ -463,6 +467,21 @@ define(['module'], function(module) {
 	};
 	Connection.prototype.close = function close() {
 		console.log('close connection');
+		if(this.connected) {
+			this._control.send('QUIT');
+		}
+		this.connected = false;
+		this.peerConnection.close();
+		if(this.connectionTimer) {
+			window.clearInterval(this.connectionTimer);
+			this.connectionTimer = null;
+		}
+		if(this.pingTimer) {
+			window.clearInterval(this.pingTimer);
+			this.pingTimer = null;
+		}
+		this.peerConnection = null;
+		callback(this, 'ondisconnect', []);
 	};
 	
 	function Peer(brokerUrl, options) {
@@ -483,7 +502,6 @@ define(['module'], function(module) {
 
 		this.broker = new Broker(brokerUrl);
 		this.pending = {};
-		this.connections = {};
 
 		this.broker.onconnect = function() {	
 			callback(that, 'onready', []);
@@ -507,8 +525,7 @@ define(['module'], function(module) {
 			handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
 			handshake.oncomplete = function(connection) {
 				delete that.pending[from];				
-				connection.onconnect = function() {
-					that.connections[connection.id] = connection;
+				connection.onconnect = function() {					
 					callback(that, 'onconnect', [connection]);
 				};
 			};
@@ -552,7 +569,6 @@ define(['module'], function(module) {
 		handshake.oncomplete = function(connection) {
 			delete that.pending[sid];
 			connection.onconnect = function() {
-				that.connections[connection.id] = connection;
 				callback(that, 'onconnect', [connection]);
 			};
 		};

@@ -22,24 +22,22 @@ if(window.location.search) {
 
 console.log('broker', brokerUrl);
 var peer = new RTCPeer(brokerUrl);
+var connections = {};
 peer.onconnect = function(connection) {
   log('connected');
-  conn = connection;
-  conn.ondisconnect = function() {
+  connections[connection.id] = connection;
+  connection.ondisconnect = function() {
     log('disconnected');
+    delete connections[connection.id];
   };
-  conn.onerror = function(error) {
+  connection.onerror = function(error) {
     console.error(error);
   };
 
-  conn.reliable.onmessage = function(msg) {
-    log("<other> " + msg.data);
+  connection.reliable.onmessage = function(msg) {
+    log('<other:' + connection.id + '> ' + msg.data);
   };
-
-  var div = document.getElementById('host');
-  div.innerHTML = '';
 };
-var conn = null;
 
 if(hosting) {  
   options = {
@@ -68,16 +66,22 @@ if(hosting) {
 }
 
 window.onbeforeunload = function() {
-  if(conn && conn.connected) {
-    conn.close();
-  }
+  var ids = Object.keys(connections);
+  ids.forEach(function(id) {
+    connections[id].close();
+  });
 };
 
 document.getElementById("chatinput").addEventListener("keyup", function(e) {
-  if (conn && e.keyCode == 13 && conn.connected) {
+  if (e.keyCode == 13) {
     var ci = document.getElementById("chatinput");
     log("<self> " + ci.value);
-    conn.reliable.send(ci.value);
+
+    var ids = Object.keys(connections);
+    ids.forEach(function(id) {
+      connections[id].reliable.send(ci.value);
+    });
+
     ci.value = "";
   }
 });
