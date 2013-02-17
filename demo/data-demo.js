@@ -3,6 +3,18 @@ function log(msg) {
   document.getElementById("chat").appendChild(document.createTextNode(msg + "\n"));
 }
 
+var localvideo = document.getElementById("local");
+var remotevideo = document.getElementById("remote");
+
+function bindStream(stream, element) {
+  if ("mozSrcObject" in element) {
+    element.mozSrcObject = stream;
+  } else {
+    element.src = webkitURL.createObjectURL(stream);
+  }
+  element.play();
+};
+
 var brokerSession = null;
 var brokerUrl = 'http://localhost:3000';
 var hosting = true;
@@ -21,7 +33,7 @@ if(window.location.search) {
 }
 
 console.log('broker', brokerUrl);
-var peer = new RTCPeer(brokerUrl);
+var peer = new RTCPeer(brokerUrl, {video: true, audio: true});
 var connections = {};
 peer.onconnect = function(connection) {
   log('connected');
@@ -34,12 +46,18 @@ peer.onconnect = function(connection) {
     console.error(error);
   };
 
+  bindStream(connection.streams['local'], localvideo);
+  bindStream(connection.streams['remote'], remotevideo);
+
   connection.reliable.onmessage = function(msg) {
     log('<other:' + connection.id + '> ' + msg.data);
   };
 };
+peer.onerror = function(error) {
+  console.error(error);
+};
 
-if(hosting) {  
+if(hosting) {
   options = {
     'application': 'data-demo'
   };
@@ -53,7 +71,7 @@ if(hosting) {
 
     var location = window.location.toString().split('?');
     location[1] = location[1] || '';
-    var params = location[1].split('&');    
+    var params = location[1].split('&');
     params.push('webrtc-session=' + sid);
     location[1] = params.join('&');
     var url = location.join('?');

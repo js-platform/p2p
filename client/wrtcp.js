@@ -1,6 +1,12 @@
 (function(define, global) { 'use strict';
 define(['module'], function(module) {
 
+	/* Notes
+	 *
+	 * - Continue using prefixed names for now.
+	 *
+	 */
+
 	var RTCPeerConnection;
 	if(/*!window.RTCPeerConnection*/ true) {
 		if(window.mozRTCPeerConnection)
@@ -228,9 +234,8 @@ define(['module'], function(module) {
     xhr.send(JSON.stringify(request));
 	};
 
-	var streamOptions = {
-		audio: true,
-		fake: true
+	var peerConnectionOptions = {
+		optional:[ { RtpDataChannels: true } ]
 	};
 	var nextDataConnectionPort = 1;
 	function WebRTCConnectProtocol(options) {
@@ -243,6 +248,10 @@ define(['module'], function(module) {
 			local: nextDataConnectionPort ++,
 			remote: null
 		};
+		this.options.streams = {
+			local: null,
+			remote: null
+		};
 
 		this.peerConnection = null;
 	};
@@ -252,24 +261,36 @@ define(['module'], function(module) {
 		if(this.peerConnection)
 			return cb();
 
-		this.peerConnection = new RTCPeerConnection();
-		this.peerConnection.onicecandidate = function(candidate) {
+		this.peerConnection = new RTCPeerConnection(null, peerConnectionOptions);
+		this.peerConnection.onicecandidate = function(event) {
 			var message = {
 				'type': 'ice',
-				'candidate': candidate
+				'candidate': JSON.stringify(event.candidate)
 			};
 			callback(that, 'onmessage', message);
 		};
+		this.peerConnection.onaddstream = function(event) {
+			that.options.streams['remote'] = event.stream;
+		}
 
-		getUserMedia(streamOptions,
-			function(stream) {
-				that.peerConnection.addStream(stream);
-				cb();
-			},
-			function(error) {
-				fail(that, 'onerror', error);
-			}
-		);
+		function createStream(useFallback) {
+			getUserMedia({video: !!that.options['video'], audio: !!that.options['video'], fake: !!useFallback},
+				function(stream) {
+					that.peerConnection.addStream(stream);
+					that.options.streams['local'] = stream;
+					cb();
+				},
+				function(error) {
+					console.error('!', error);
+					if(!useFallback)
+						createStream(true);
+					else
+						fail(that, 'onerror', error);
+				}
+			);
+		}
+
+		createStream();
 	};
 	WebRTCConnectProtocol.prototype.initiate = function initiate() {
 		var that = this;
@@ -378,7 +399,7 @@ define(['module'], function(module) {
 		var type = message['type'];
 		switch(type) {
 			case 'ice':
-				this.handleIce(message['candidate']);
+				this.handleIce(JSON.parse(message['candidate']));
 				break;
 
 			case 'offer':
@@ -408,6 +429,7 @@ define(['module'], function(module) {
 	function Connection(peerConnection, options, initiate) {
 		var that = this;
 		this.id = nextConnectionId ++;
+		this.streams = options.streams;
 		this.connected = false;
 
 		this.onconnect = null;
