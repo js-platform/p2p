@@ -38,7 +38,7 @@ define(['module'], function(module) {
 	var DEFAULT_CONNECTION_TIMEOUT = 10 * ONE_SECOND;
   var DEFAULT_PING_TIMEOUT = 1 * ONE_SECOND;
   var RELIABLE_CHANNEL_OPTIONS = {
-  	// defaults are OK  	
+  	// defaults are OK
   };
   var UNRELIABLE_CHANNEL_OPTIONS = {
     outOfOrderAllowed: true,
@@ -58,7 +58,7 @@ define(['module'], function(module) {
 		this.onerror = null;
 
 		this.channel = null;
-		this.cid = null;		
+		this.cid = null;
 		this.key = null;
 		this.sid = null;
 	};
@@ -73,10 +73,10 @@ define(['module'], function(module) {
 		var channel = that.channel = new EventSource(that.brokerUrl + '/channel');
   	channel.addEventListener('error', function(event) {
       if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
-        // Connection was closed.          
+        // Connection was closed.
         console.log('broker channel closed');
         channel.close();
-        that.connected = false;        
+        that.connected = false;
         callback(that, 'ondisconnect', []);
       } else {
       	return fail(that, 'onerror', event.target.readyState);
@@ -99,7 +99,7 @@ define(['module'], function(module) {
       var from = data['origin'];
       var message = data['message'];
 
-      callback(that, 'onmessage', [to, from, message]);      
+      callback(that, 'onmessage', [to, from, message]);
     }, false);
     that.channel = channel;
 
@@ -139,10 +139,10 @@ define(['module'], function(module) {
     xhr.onreadystatechange = function() {
       if(4 !== xhr.readyState) return;
       if(!(200 === xhr.status || 201 === xhr.status)) {
-      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
+      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)
       }
 
-      var response = JSON.parse(xhr.responseText);      
+      var response = JSON.parse(xhr.responseText);
       var sid = that.sid = response['sid'];
 
       callback(that, 'onhost', [sid]);
@@ -171,7 +171,7 @@ define(['module'], function(module) {
     xhr.onreadystatechange = function() {
       if(4 !== xhr.readyState) return;
       if(!(200 === xhr.status || 201 === xhr.status)) {
-      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
+      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)
       }
 
       that.sid = null;
@@ -201,7 +201,7 @@ define(['module'], function(module) {
     xhr.onreadystatechange = function() {
       if(4 !== xhr.readyState) return;
       if(!(200 === xhr.status || 201 === xhr.status)) {
-      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)        
+      	return fail(that, 'onerror', xhr.statusText + ': ' + xhr.responseText)
       }
     };
     xhr.send(JSON.stringify(request));
@@ -210,7 +210,7 @@ define(['module'], function(module) {
 	var nextDataConnectionPort = 1;
 	function WebRTCConnectProtocol(options) {
 		this.onmessage = null;
-		this.oncomplete = null;		
+		this.oncomplete = null;
 		this.onerror = null;
 		this.complete = false;
 		this.options = options;
@@ -220,9 +220,10 @@ define(['module'], function(module) {
 		};
 
 		this.peerConnection = null;
-	};	
-	WebRTCConnectProtocol.prototype.process = function process(message, cb) {
-		var that = this;		
+	};
+
+	WebRTCConnectProtocol.prototype.process = function process(message) {
+		var that = this;
 		if(undefined === message) {
 			that.peerConnection = new RTCPeerConnection();
 			getUserMedia({audio: true, fake: true}, function(stream) {
@@ -232,7 +233,7 @@ define(['module'], function(module) {
 						'offer': offer.sdp,
 						'port': that.options.ports.local
 					};
-					cb(message);
+					callback(that, 'onmessage', message);
 				}, function(error) {
 					fail(that, 'onerror', error);
 				});
@@ -242,7 +243,7 @@ define(['module'], function(module) {
 		} else if(message.hasOwnProperty('offer')) {
 			var offer = message['offer'];
 			that.options.ports.remote = message['port'];
-			that.peerConnection = new RTCPeerConnection();			
+			that.peerConnection = new RTCPeerConnection();
 			getUserMedia({audio: true, fake: true}, function(stream) {
 				that.peerConnection.addStream(stream);
 				that.peerConnection.setRemoteDescription({
@@ -254,8 +255,8 @@ define(['module'], function(module) {
 							var message = {
 								'answer': answer.sdp,
 								'port': that.options.ports.local
-							};							
-							cb(message);
+							};
+							callback(that, 'onmessage', message);
 							var connection = new Connection(that.peerConnection, that.options, false);
 							callback(that, 'oncomplete', [connection]);
 						}, function(error) {
@@ -277,7 +278,6 @@ define(['module'], function(module) {
 				'type': 'answer',
 				'sdp': answer
 			}, function() {
-				cb();
 				var connection = new Connection(that.peerConnection, that.options, true);
 				callback(that, 'oncomplete', [connection]);
 			}, function(error) {
@@ -301,7 +301,7 @@ define(['module'], function(module) {
 		// DataChannels
 		var reliable = null;
 		var unreliable = null;
-		var control = null;	// for internal use only		
+		var control = null;	// for internal use only
 
 		this.reliable = {
 			send: null,
@@ -332,12 +332,12 @@ define(['module'], function(module) {
       this.connectionTimer = null;
       if(false === messageFlag) {
         console.log('sending ping');
-        control.send('PING');            
+        control.send('PING');
         this.pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
       } else {
         messageFlag = false;
         this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
-      }          
+      }
     };
     function handlePingTimeoutExpired() {
       this.pingTimer = null;
@@ -380,7 +380,7 @@ define(['module'], function(module) {
           if(that.connected) {
             callback(that.reliable, 'onmessage', [event]);
           }
-        };       
+        };
         unreliable.onmessage = function(event) {
           messageFlag = true;
           if(that.connected) {
@@ -401,7 +401,7 @@ define(['module'], function(module) {
               that.close();
             }
           }
-        };        
+        };
 			};
 			that.peerConnection.connectDataConnection(options.ports.local, options.ports.remote);
 		} else {
@@ -483,7 +483,7 @@ define(['module'], function(module) {
 		this.peerConnection = null;
 		callback(this, 'ondisconnect', []);
 	};
-	
+
 	function Peer(brokerUrl, options) {
 		var that = this;
 		this.brokerUrl = brokerUrl;
@@ -503,7 +503,7 @@ define(['module'], function(module) {
 		this.broker = new Broker(brokerUrl);
 		this.pending = {};
 
-		this.broker.onconnect = function() {	
+		this.broker.onconnect = function() {
 			callback(that, 'onready', []);
 		};
 		this.broker.ondisconnect = function() {
@@ -516,7 +516,7 @@ define(['module'], function(module) {
 			callback(that, 'onunhost', []);
 		}
 		this.broker.onmessage = _handleBrokerMessage.bind(this);
-		this.broker.connect();		
+		this.broker.connect();
 	};
 	function _handleBrokerMessage(to, from, message) {
 		var that = this;
@@ -524,10 +524,14 @@ define(['module'], function(module) {
 		if(!that.pending.hasOwnProperty(from)) {
 			handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
 			handshake.oncomplete = function(connection) {
-				delete that.pending[from];				
-				connection.onconnect = function() {					
+				delete that.pending[from];
+				connection.onconnect = function() {
 					callback(that, 'onconnect', [connection]);
 				};
+			};
+			handshake.onmessage = function(message) {
+				// 'to' and 'from' are inverted because we're replying
+				that.broker.send(from, to, message);
 			};
 			handshake.onerror = function(error) {
 				delete that.pending[from];
@@ -536,12 +540,7 @@ define(['module'], function(module) {
 		} else {
 			handshake = that.pending[from];
 		}
-		handshake.process(message, function(result) {
-			if(result) {
-				// 'to' and 'from' are inverted because we're replying
-				that.broker.send(from, to, result);
-			}
-		});
+		handshake.process(message);
 	};
 	Peer.prototype.host = function host(options) {
 		var that = this;
@@ -572,15 +571,14 @@ define(['module'], function(module) {
 				callback(that, 'onconnect', [connection]);
 			};
 		};
+		handshake.onmessage = function(message) {
+			that.broker.send(sid, that.broker.cid, message);
+		};
 		handshake.onerror = function(error) {
 			delete that.pending[sid];
 			callback(that, 'onerror', [error])
 		};
-		handshake.process(undefined, function(result) {
-			if(result) {				
-				that.broker.send(sid, that.broker.cid, result);		
-			}
-		});
+		handshake.process();
 	};
 
 	return Peer;
