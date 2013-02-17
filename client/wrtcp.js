@@ -469,7 +469,7 @@ define(['module'], function(module) {
 		this.connectionTimer = null;
 		this.pingTimer = null;
 		function handleConnectionTimeoutExpired() {
-			if(!this.connected)
+			if(!that.connected)
 				return
       this.connectionTimer = null;
       if(false === messageFlag) {
@@ -482,7 +482,7 @@ define(['module'], function(module) {
       }
     };
     function handlePingTimeoutExpired() {
-    	if(!this.connected)
+    	if(!that.connected)
 				return
       this.pingTimer = null;
       if(false === messageFlag) {
