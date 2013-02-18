@@ -27,8 +27,8 @@ var sessions = {};
 var listing = {};
 
 setInterval(function() {
-	console.info(' channels: ' + Object.keys(channels).length + 
-							 ' sessions: ' + Object.keys(sessions).length + 
+	console.info(' channels: ' + Object.keys(channels).length +
+							 ' sessions: ' + Object.keys(sessions).length +
 							 ' listing: ' + Object.keys(listing).length);
 }, 60000);
 
@@ -49,7 +49,7 @@ exports.channel = function channel(req, res) {
 	}
 
 	var cid = mkguid();
-	var key = mksecret();	
+	var key = mksecret();
 
 	var channel = {
 		res: res,
@@ -68,7 +68,7 @@ exports.channel = function channel(req, res) {
 				var application = lister['application'];
 				if(application && application !== session['application']) return;
 
-				lister.res.write(mksseevt('delete', 
+				lister.res.write(mksseevt('delete',
 					result
 				));
 			});
@@ -79,9 +79,10 @@ exports.channel = function channel(req, res) {
 
 	channels[cid] = channel;
 
-	res.writeHead(201, mkssehdr());
-	res.write(mksseevt('control', 
-		{'cid': cid, 
+	// Must return 200 here for Chrome EventSource to work
+	res.writeHead(200, mkssehdr());
+	res.write(mksseevt('control',
+		{'cid': cid,
 		 'key': key}
 	));
 
@@ -93,7 +94,7 @@ exports.list = function list(req, res) {
 
 	var result = [];
 	Object.keys(sessions).forEach(function(sid) {
-		var session = sessions[sid];		
+		var session = sessions[sid];
 		if(application && application !== session['application']) return;
 
 		var clientUrl = url.parse(session['url'], true);
@@ -109,7 +110,7 @@ exports.list = function list(req, res) {
 			'tags': session['tags'],
 			'metadata': session['metadata'],
 			'created': session['created']
-		});  	
+		});
 	});
 
 	var accepts = req.headers['accept'].split(',');
@@ -126,7 +127,7 @@ exports.list = function list(req, res) {
 			delete listing[lid];
 		});
 		res.writeHead(200, mkssehdr());
-		res.write(mksseevt('list', 
+		res.write(mksseevt('list',
 			result
 		));
 	}
@@ -159,7 +160,7 @@ exports.show = function show(req, res) {
 };
 
 exports.session = function session(req, res) {
-	var body = req.body;	
+	var body = req.body;
 
 	if(!body['cid']) {
 		return res.send(400, 'missing host');
@@ -198,7 +199,7 @@ exports.session = function session(req, res) {
 		{'sid': sid}
 	));
 
-	// update listings	
+	// update listings
 	var result = [];
 	var clientUrl = url.parse(session['url'], true);
   clientUrl.query['webrtc-session'] = sid;
@@ -220,7 +221,7 @@ exports.session = function session(req, res) {
 		var application = lister['application'];
 		if(application && application !== session['application']) return;
 
-		lister.res.write(mksseevt('insert', 
+		lister.res.write(mksseevt('insert',
 			result
 		));
 	});
@@ -258,7 +259,7 @@ exports.delete_session = function delete_session(req, res) {
 		var application = lister['application'];
 		if(application && application !== session['application']) return;
 
-		lister.res.write(mksseevt('delete', 
+		lister.res.write(mksseevt('delete',
 			result
 		));
 	});
@@ -274,7 +275,7 @@ exports.send = function send(req, res) {
 	if(undefined === target_cid) {
 		return res.send(404, 'channel not found');
 	}
-	
+
 	if(!body['origin']) {
 		return res.send(400, 'missing origin');
 	}

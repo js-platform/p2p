@@ -8,34 +8,34 @@ define(['module'], function(module) {
 	 */
 
 	var RTCPeerConnection;
-	if(/*!window.RTCPeerConnection*/ true) {
-		if(window.mozRTCPeerConnection)
-			RTCPeerConnection = window.mozRTCPeerConnection;
-		else if(window.webkitRTCPeerConnection)
-			RTCPeerConnection = window.webkitRTCPeerConnection;
-	} else {
+	if(window.mozRTCPeerConnection)
+		RTCPeerConnection = window.mozRTCPeerConnection;
+	else if(window.webkitRTCPeerConnection)
+		RTCPeerConnection = window.webkitRTCPeerConnection;
+	else if(window.RTCPeerConnection)
 		RTCPeerConnection = window.RTCPeerConnection
-	}
+	else
+		throw new Error('RTCPeerConnection not supported');
 
 	var RTCSessionDescription;
-	if(/*!window.RTCSessionDescription*/ true) {
-		if(window.mozRTCSessionDescription)
-			RTCSessionDescription = window.mozRTCSessionDescription;
-		else if(window.webkitRTCSessionDescription)
-			RTCSessionDescription = window.webkitRTCSessionDescription;
-	} else {
+	if(window.mozRTCSessionDescription)
+		RTCSessionDescription = window.mozRTCSessionDescription;
+	else if(window.webkitRTCSessionDescription)
+		RTCSessionDescription = window.webkitRTCSessionDescription;
+	else if(window.RTCSessionDescription)
 		RTCSessionDescription = window.RTCSessionDescription
-	}
+	else
+		throw new Error('RTCSessionDescription not supported');
 
 	var RTCIceCandidate;
-	if(/*!window.RTCIceCandidate*/ true) {
-		if(window.mozRTCIceCandidate)
-			RTCIceCandidate = window.mozRTCIceCandidate;
-		else if(window.webkitRTCIceCandidate)
-			RTCIceCandidate = window.webkitRTCIceCandidate;
-	} else {
-		RTCIceCandidate = window.RTCIceCandidate
-	}
+	if(window.mozRTCIceCandidate)
+		RTCIceCandidate = window.mozRTCIceCandidate;
+	else if(window.webkitRTCIceCandidate)
+		RTCIceCandidate = window.webkitRTCIceCandidate;
+	else if(window.RTCIceCandidate)
+		RTCIceCandidate = window.RTCIceCandidate;
+	else
+		throw new Error('RTCIceCandidate not supported');
 
 	var getUserMedia;
 	if(!navigator.getUserMedia) {
@@ -98,17 +98,25 @@ define(['module'], function(module) {
 		this.connecting = true;
 
 		var channel = that.channel = new EventSource(that.brokerUrl + '/channel');
+		channel.addEventListener('open', function(event) {
+			console.log('broker channel open');
+		});
   	channel.addEventListener('error', function(event) {
-      if(event.target.readyState == EventSource.CLOSED || event.target.readyState == EventSource.CONNECTING) {
+      if(event.target.readyState == EventSource.CLOSED) {
         // Connection was closed.
         console.log('broker channel closed');
         channel.close();
         that.connected = false;
         callback(that, 'ondisconnect', []);
+      } else if(event.target.readyState == EventSource.CONNECTING) {
+      	console.log('broker abort reconnect');
+      	channel.close();
+      	that.connected = false;
+      	callback(that, 'ondisconnect', []);
       } else {
       	return fail(that, 'onerror', event.target.readyState);
       }
-    }, false);
+    });
     channel.addEventListener('control', function(event) {
       console.log('broker control message');
       var data = JSON.parse(event.data);
@@ -118,7 +126,7 @@ define(['module'], function(module) {
       that.connected = true;
       that.connecting = false;
       callback(that, 'onconnect', []);
-    }, false);
+    });
     channel.addEventListener('message', function(event) {
       console.log('broker application message');
       var data = JSON.parse(event.data);
@@ -127,7 +135,7 @@ define(['module'], function(module) {
       var message = data['message'];
 
       callback(that, 'onmessage', [to, from, message]);
-    }, false);
+    });
     that.channel = channel;
 
     return this;
@@ -235,7 +243,7 @@ define(['module'], function(module) {
 	};
 
 	var peerConnectionOptions = {
-		optional:[ { RtpDataChannels: true } ]
+		'optional': [{ 'RtpDataChannels': true }],
 	};
 	var nextDataConnectionPort = 1;
 	function WebRTCConnectProtocol(options) {
@@ -273,8 +281,16 @@ define(['module'], function(module) {
 			that.options.streams['remote'] = event.stream;
 		}
 
-		function createStream(useFallback) {
-			getUserMedia({video: !!that.options['video'], audio: !!that.options['video'], fake: !!useFallback},
+		function createStream(useFake) {
+			useFake = (!useVideo && !useAudio) ? true : useFake;
+			var useVideo = !!that.options['video'];
+			var useAudio = !!that.options['audio'];
+			var mediaOptions = {
+				video: useVideo,
+				audio: (!useVideo && !useAudio) ? true : useAudio,
+				fake: useFake
+			};
+			getUserMedia(mediaOptions,
 				function(stream) {
 					that.peerConnection.addStream(stream);
 					that.options.streams['local'] = stream;
@@ -282,7 +298,7 @@ define(['module'], function(module) {
 				},
 				function(error) {
 					console.error('!', error);
-					if(!useFallback)
+					if(!useFake)
 						createStream(true);
 					else
 						fail(that, 'onerror', error);
@@ -326,6 +342,9 @@ define(['module'], function(module) {
 		var that = this;
 
 		function setIce() {
+			if(!that.peerConnection.remoteDescription)
+				return
+
 			that.peerConnection.addIceCandidate(new RTCIceCandidate(candidate),
 				function(error) {
 					fail(that, 'onerror', error);
@@ -399,7 +418,7 @@ define(['module'], function(module) {
 		var type = message['type'];
 		switch(type) {
 			case 'ice':
-				this.handleIce(JSON.parse(message['candidate']));
+				//this.handleIce(JSON.parse(message['candidate']));
 				break;
 
 			case 'offer':

@@ -33,7 +33,7 @@ if(window.location.search) {
 }
 
 console.log('broker', brokerUrl);
-var peer = new RTCPeer(brokerUrl, {video: true, audio: true});
+var peer = new RTCPeer(brokerUrl, {video: false, audio: false});
 var connections = {};
 peer.onconnect = function(connection) {
   log('connected');
@@ -46,15 +46,15 @@ peer.onconnect = function(connection) {
     console.error(error);
   };
 
-  bindStream(connection.streams['local'], localvideo);
-  bindStream(connection.streams['remote'], remotevideo);
+  //bindStream(connection.streams['local'], localvideo);
+  //bindStream(connection.streams['remote'], remotevideo);
 
   connection.reliable.onmessage = function(msg) {
     log('<other:' + connection.id + '> ' + msg.data);
   };
 };
 peer.onerror = function(error) {
-  console.error(error);
+  console.error(error.stack);
 };
 
 if(hosting) {
