@@ -3,8 +3,10 @@ function log(msg) {
   document.getElementById("chat").appendChild(document.createTextNode(msg + "\n"));
 }
 
+/*
 var localvideo = document.getElementById("local");
 var remotevideo = document.getElementById("remote");
+*/
 
 function bindStream(stream, element) {
   if ("mozSrcObject" in element) {
@@ -58,26 +60,19 @@ peer.onerror = function(error) {
 };
 
 if(hosting) {
-  options = {
-    'application': 'data-demo'
-  };
-  peer.onready = function() {
-    console.log('ready');
+  peer.listen();
 
-    peer.host(options);
-  };
-  peer.onhost = function(sid) {
-    console.log('hosting');
+  console.log('hosting');
 
-    var location = window.location.toString().split('?');
-    location[1] = location[1] || '';
-    var params = location[1].split('&');
-    params.push('webrtc-session=' + sid);
-    location[1] = params.join('&');
-    var url = location.join('?');
+  peer.onroute = function(route) {
+    var url = window.location.toString().split('?');
+    url[1] = url[1] || '';
+    var params = url[1].split('&');
+    params.push('webrtc-session=' + route);
+    url[1] = params.join('&');
 
     var div = document.getElementById('host');
-    div.innerHTML = '<a href="' + url + '">connect</a>';
+    div.innerHTML = '<a href="' + url.join('?') + '">connect</a>';
   }
 } else {
   peer.connect(brokerSession);
