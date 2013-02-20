@@ -4,13 +4,20 @@ var io = require('socket.io').listen(8080, {
 	'log level': 3
 });
 
+var jsMime = {
+  type: 'application/javascript',
+  encoding: 'utf8',
+  gzip: true
+};
+
 io.static.add('/wrtcp.js', {
-	mime: {
-    type: 'application/javascript',
-    encoding: 'utf8',
-    gzip: true
-  },
+	mime: jsMime,
   file: 'dist/wrtcp.js'
+});
+
+io.static.add('/wrtcp.min.js', {
+	mime: jsMime,
+	file: 'dist/wrtcp.min.js'
 });
 
 function mkguid() {
