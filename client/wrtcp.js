@@ -2,7 +2,8 @@
 ;(function(define, global) { 'use strict';
 define(['module'], function(module) {
 
-	/*! Socket.IO.js build:0.9.11, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
+	/*! Socket.IO.js build:0.9.11, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed
+			Modified to work in-line; Removed Flash transport code */
 	var io = ('undefined' === typeof module ? {} : module.exports);
 	(function() {
 
@@ -3804,7 +3805,7 @@ define(['module'], function(module) {
   };
   WebSocketBroker.prototype.connect = function connect() {
   	var that = this;
-  	var socket = io.connect(brokerUrl + '/peer');
+  	var socket = io.connect(this.brokerUrl + '/peer');
 
   	socket.on('connecting', function onconnecting() {
   		that.setState(WebSocketBroker.CONNECTING, true);

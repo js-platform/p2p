@@ -89,6 +89,8 @@ io.of('/peer').on('connection', function(socket) {
 			hosts[route] = new Host(options);
 		}
 
+		appendList(host);
+
 		callback();
 	});
 
@@ -98,7 +100,10 @@ io.of('/peer').on('connection', function(socket) {
 			return;
 		}
 
+		var host = hosts[route];
 		delete hosts[route];
+
+		removeList(host);
 
 		callback();
 	});
@@ -106,8 +111,9 @@ io.of('/peer').on('connection', function(socket) {
 	peers[route] = socket;
 });
 
-function Filter(options) {
+function Filter(socket, options) {
 	this.options = options || {};
+	this.socket = socket;
 };
 Filter.prototype.test = function test(host) {
 	var filter = this.options;
@@ -125,6 +131,24 @@ Filter.prototype.test = function test(host) {
 
 var lists = {};
 
+function appendList(host) {
+	var clients = Object.keys[lists];
+	clients.forEach(function(client) {
+		var filter = lists[client];
+		if(filter.test(host))
+			filter.socket.emit('append', host);
+	});
+};
+
+function removeList(host) {
+	var clients = Object.keys[lists];
+	clients.forEach(function(client) {
+		var filter = lists[client];
+		if(filter.test(host))
+			filter.socket.emit('remove', host.route);
+	});
+};
+
 io.of('/list').on('connection', function(socket) {
 	var id = socket['id'];
 
@@ -133,7 +157,7 @@ io.of('/list').on('connection', function(socket) {
 	});
 
 	socket.on('list', function(options) {
-		var filter = new Filter(options);
+		var filter = new Filter(socket, options);
 
 		var result = [];
 

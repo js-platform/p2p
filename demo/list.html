@@ -36,11 +36,18 @@
 		console.error(error);
 	});
 	socket.on('truncate', function(list) {
-		clear(list);
+		clear();
+		append(list);
+	});
+	socket.on('append', function(host) {
+		append([host]);
+	});
+	socket.on('remove', function(route) {
+		remove([route]);
 	});
 
 	function setQuery(url, item) {
-		urlParts = url.split('?');
+		var urlParts = url.split('?');
 		if(urlParts.length < 2) {
 			urlParts[1] = item;
 		} else {
@@ -51,9 +58,19 @@
 		return urlParts.join('?');
 	};
 
-	function clear(list) {
+	function clear() {
+		hosts = {};
+		var div = document.getElementById('list');
+		var parent = div.parentNode;
+		parent.removeChild(div);
+		div = document.createElement('div');
+		parent.appendChild(div);
+	};
+
+	function append(list) {
 		list = list || [];
 		list.forEach(function(host) {
+			hosts[host['route']] = host;
 			var div = document.getElementById('list');
 			var element = document.createElement('div');
 			host.element = element;
@@ -61,6 +78,16 @@
 			var url = setQuery(host['url'], 'webrtc-session=' + host['route']);
 			element.innerHTML = new Date(host['ctime']).toString() + ' | ' + name  + ' | ' + '<a href="' + url + '">join</a>';
 			div.appendChild(element);
+		});
+	};
+
+	function remove(list) {
+		list = list || [];
+		list.forEach(function(route) {
+			var host = hosts[route];
+			var element = host.element;
+			element.parentNode.removeChild(element);
+			delete hosts[route];
 		});
 	};
 </script>
