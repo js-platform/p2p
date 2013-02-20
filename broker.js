@@ -98,10 +98,20 @@ io.of('/peer').on('connection', function(socket) {
 });
 
 function Filter(options) {
-	this.options = options;
+	this.options = options || {};
 };
 Filter.prototype.test = function test(host) {
+	var filter = this.options;
+	if(filter['metadata'] && host['metadata']) {
+		var metadataFilter = filter['metadata'];
+		var metadataHost = host['metadata'];
+		if(metadataFilter['name'] && hostMetadata['name']) {
+			if(!hostMetadata['name'].match(metadataFilter['name']))
+				return false;
+		}
+	}
 
+	return true;
 };
 
 var lists = {};
