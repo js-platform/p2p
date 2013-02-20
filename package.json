@@ -10,7 +10,8 @@
     "jade": "*",
     "underscore": "~1.4.2",
     "forever": "~0.10.0",
-    "socket.io": "~0.9.13"
+    "socket.io": "~0.9.13",
+    "uglify-js": "~2.2.5"
   },
   "engines": {
     "node": "0.8.x",
