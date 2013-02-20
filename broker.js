@@ -35,6 +35,7 @@ function Peer(socket) {
 };
 
 function Host(options) {
+	this.route = options['route'];
 	this.url = options['url'];
 	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
 	this.metadata = options['metadata'] || {};
@@ -74,6 +75,7 @@ io.of('/peer').on('connection', function(socket) {
 	});
 
 	socket.on('listen', function(options, callback) {
+		options['route'] = route;
 		if(hosts.hasOwnProperty(route)) {
 			hosts[route].update(options);
 		} else {
@@ -105,8 +107,8 @@ Filter.prototype.test = function test(host) {
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
-		if(metadataFilter['name'] && hostMetadata['name']) {
-			if(!hostMetadata['name'].match(metadataFilter['name']))
+		if(metadataFilter['name'] && metadataHost['name']) {
+			if(!metadataHost['name'].match(metadataFilter['name']))
 				return false;
 		}
 	}
@@ -124,11 +126,21 @@ io.of('/list').on('connection', function(socket) {
 	});
 
 	socket.on('list', function(options) {
-		lists[id] = new Filter(options);
+		var filter = new Filter(options);
 
 		var result = [];
 
 		var hostIds = Object.keys(hosts);
-		hostIds.forEach
+		hostIds.forEach(function(hostId) {
+			var host = hosts[hostId];
+			if(!host['listed'])
+				return;
+			if(filter.test(host))
+				result.push(host);
+		});
+
+		lists[id] = filter;
+
+		socket.emit('truncate', result);
 	});
 });

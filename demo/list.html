@@ -4,10 +4,12 @@
   <meta charset="utf-8" />
 </head>
 <body>
+	<div id="list">
+	</div>
 </body>
 <script src="../node_modules/socket.io-client/dist/socket.io.js"></script>
 <script>
-	var brokerUrl = 'http://modeswit.ch:3000';
+	var brokerUrl = 'http://wrtcb.jit.su';
 	if(window.location.search) {
 	  var params = window.location.search.substring(1).split('&');
 	  for(var i = 0; i < params.length; ++ i) {
@@ -26,12 +28,40 @@
 		}
 	};
 
-	var socket = io.connect('http://localhost:3000/list');
+	var socket = io.connect(brokerUrl + '/list');
 	socket.on('connect', function() {
 		socket.emit('list', filter);
 	});
 	socket.on('error', function(error) {
 		console.error(error);
 	});
+	socket.on('truncate', function(list) {
+		clear(list);
+	});
+
+	function setQuery(url, item) {
+		urlParts = url.split('?');
+		if(urlParts.length < 2) {
+			urlParts[1] = item;
+		} else {
+			var query = urlParts[1].split('&');
+			query.push(item);
+			urlParts[1] = query.join('&');
+		}
+		return urlParts.join('?');
+	};
+
+	function clear(list) {
+		list = list || [];
+		list.forEach(function(host) {
+			var div = document.getElementById('list');
+			var element = document.createElement('div');
+			host.element = element;
+			var name = host['metadata']['name'] || '';
+			var url = setQuery(host['url'], 'webrtc-session=' + host['route']);
+			element.innerHTML = new Date(host['ctime']).toString() + ' | ' + name  + ' | ' + '<a href="' + url + '">join</a>';
+			div.appendChild(element);
+		});
+	};
 </script>
 </html>
