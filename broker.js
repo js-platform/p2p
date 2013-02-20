@@ -1,5 +1,16 @@
+var crypto = require('crypto');
+
 var io = require('socket.io').listen(8080, {
 	'log level': 3
+});
+
+io.static.add('/wrtcp.js', {
+	mime: {
+    type: 'application/javascript',
+    encoding: 'utf8',
+    gzip: true
+  },
+  file: 'dist/wrtcp.js'
 });
 
 function mkguid() {
@@ -38,7 +49,7 @@ Host.prototype.update = function update(options) {
 };
 
 io.of('/peer').on('connection', function(socket) {
-	var route = socket['id'];
+	var route = crypto.createHash('md5').update(socket['id']).digest('hex');
 	socket.emit('route', route);
 
 	socket.on('disconnect', function() {
