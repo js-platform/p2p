@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8" />
+</head>
+<body>
+</body>
+<script src="../node_modules/socket.io-client/dist/socket.io.js"></script>
+<script>
+	var brokerUrl = 'http://modeswit.ch:3000';
+	if(window.location.search) {
+	  var params = window.location.search.substring(1).split('&');
+	  for(var i = 0; i < params.length; ++ i) {
+	    if(params[i].match('^webrtc-broker')) {
+	      brokerUrl = params[i].split('=')[1];
+	    }
+	  }
+	}
+
+	console.log(brokerUrl);
+
+	var hosts = {};
+	var filter = {
+		'metadata': {
+			'name': 'BananaBread'
+		}
+	};
+
+	var socket = io.connect('http://localhost:3000/list');
+	socket.on('connect', function() {
+		socket.emit('list', filter);
+	});
+	socket.on('error', function(error) {
+		console.error(error);
+	});
+</script>
+</html>

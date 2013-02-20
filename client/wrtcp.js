@@ -3804,7 +3804,7 @@ define(['module'], function(module) {
   };
   WebSocketBroker.prototype.connect = function connect() {
   	var that = this;
-  	var socket = io.connect(brokerUrl);
+  	var socket = io.connect(brokerUrl + '/peer');
 
   	socket.on('connecting', function onconnecting() {
   		that.setState(WebSocketBroker.CONNECTING, true);
@@ -3887,7 +3887,7 @@ define(['module'], function(module) {
   };
 
 	var peerConnectionOptions = {
-		'optional': [{ 'RtpDataChannels': true }],
+		'optional': [{ 'RtpDataChannels': true }]
 	};
 	var nextDataConnectionPort = 1;
 	function WebRTCConnectProtocol(options) {

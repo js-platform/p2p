@@ -1,4 +1,4 @@
-var io = require('socket.io').listen(3000, {
+var io = require('socket.io').listen(8080, {
 	'log level': 3
 });
 
@@ -28,12 +28,17 @@ function Host(options) {
 	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
 	this.metadata = options['metadata'] || {};
 	this.ctime = Date.now();
+	this.mtime = Date.now();
+};
+Host.prototype.update = function update(options) {
+	this.url = options['url'];
+	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
+	this.metadata = options['metadata'] || {};
+	this.mtime = Date.now();
 };
 
-var PEER = io.of('/peer').on('connection', function(socket) {
-	var route = mkguid();
-	var peer = new Peer(socket);
-
+io.of('/peer').on('connection', function(socket) {
+	var route = socket['id'];
 	socket.emit('route', route);
 
 	socket.on('disconnect', function() {
@@ -51,36 +56,58 @@ var PEER = io.of('/peer').on('connection', function(socket) {
 
 		var from = route;
 		var data = message['data'];
-		peers[to]['socket'].emit('receive', {
+		peers[to].emit('receive', {
 			'from': from,
 			'data': data
 		});
 	});
 
 	socket.on('listen', function(options, callback) {
-		if(peer.host)
-			delete peer['host'];
-		peer['host'] = new Host(options);
+		if(hosts.hasOwnProperty(route)) {
+			hosts[route].update(options);
+		} else {
+			hosts[route] = new Host(options);
+		}
 
 		callback();
 	});
 
 	socket.on('ignore', function(message, callback) {
-		console.log('ignore');
-		if(!peer.host) {
+		if(!hosts.hasOwnProperty(route)) {
 			callback({'error': E.ISNOTHOST});
 			return;
 		}
 
 		delete hosts[route];
-		delete peers['host'];
 
 		callback();
 	});
 
-	peers[route] = peer;
+	peers[route] = socket;
 });
 
-var LIST = io.of('/list').on('connection', function(socket) {
+function Filter(options) {
+	this.options = options;
+};
+Filter.prototype.test = function test(host) {
 
+};
+
+var lists = {};
+
+io.of('/list').on('connection', function(socket) {
+	var id = socket['id'];
+
+	socket.on('disconnect', function() {
+		delete lists[id];
+	});
+
+	socket.on('list', function(options) {
+		lists[id] = new Filter(options);
+
+		var result = [];
+
+		var hostIds = Object.keys(hosts);
+		hostIds.forEach
+	});
 });
