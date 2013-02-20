@@ -60,8 +60,6 @@ peer.onerror = function(error) {
 };
 
 if(hosting) {
-  peer.listen();
-
   console.log('hosting');
 
   peer.onroute = function(route) {

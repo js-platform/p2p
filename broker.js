@@ -44,14 +44,14 @@ function Peer(socket) {
 function Host(options) {
 	this.route = options['route'];
 	this.url = options['url'];
-	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
+	this.listed = (undefined !== options['listed']) ? options['listed'] : true;
 	this.metadata = options['metadata'] || {};
 	this.ctime = Date.now();
 	this.mtime = Date.now();
 };
 Host.prototype.update = function update(options) {
 	this.url = options['url'];
-	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
+	this.listed = (undefined !== options['listed']) ? options['listed'] : true;
 	this.metadata = options['metadata'] || {};
 	this.mtime = Date.now();
 };
@@ -61,6 +61,10 @@ io.of('/peer').on('connection', function(socket) {
 	socket.emit('route', route);
 
 	socket.on('disconnect', function() {
+		if(hosts[route]) {
+			var host = hosts[route];
+			removeList(host);
+		}
 		delete hosts[route];
 		delete peers[route];
 	});
@@ -89,7 +93,7 @@ io.of('/peer').on('connection', function(socket) {
 			hosts[route] = new Host(options);
 		}
 
-		appendList(host);
+		appendList(hosts[route]);
 
 		callback();
 	});
@@ -116,6 +120,7 @@ function Filter(socket, options) {
 	this.socket = socket;
 };
 Filter.prototype.test = function test(host) {
+	/*
 	var filter = this.options;
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
@@ -125,6 +130,7 @@ Filter.prototype.test = function test(host) {
 				return false;
 		}
 	}
+	*/
 
 	return true;
 };
@@ -132,18 +138,22 @@ Filter.prototype.test = function test(host) {
 var lists = {};
 
 function appendList(host) {
-	var clients = Object.keys[lists];
+	var clients = Object.keys(lists);
 	clients.forEach(function(client) {
 		var filter = lists[client];
+		if(!host['listed'])
+			return;
 		if(filter.test(host))
 			filter.socket.emit('append', host);
 	});
 };
 
 function removeList(host) {
-	var clients = Object.keys[lists];
+	var clients = Object.keys(lists);
 	clients.forEach(function(client) {
 		var filter = lists[client];
+		if(!host['listed'])
+			return;
 		if(filter.test(host))
 			filter.socket.emit('remove', host.route);
 	});

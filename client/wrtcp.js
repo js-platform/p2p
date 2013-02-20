@@ -4259,7 +4259,7 @@ define(['module'], function(module) {
         }
 
         if('reliable' === channel.label || 'unreliable' === channel.label) {
-          channel.binaryType = binaryType;
+          channel.binaryType = options['binaryType'];
         } else if('control' === channel.label) {
           channel.binaryType = 'arraybuffer';
         }
@@ -4332,7 +4332,7 @@ define(['module'], function(module) {
 				handshake.oncomplete = function(connection) {
 					delete that.pending[from];
 					connection.onconnect = function() {
-						callback(that, 'onconnect', [connection]);
+						callback(that, 'onconnection', [connection]);
 					};
 				};
 				handshake.onmessage = function(message) {
@@ -4377,7 +4377,7 @@ define(['module'], function(module) {
 		handshake.oncomplete = function(connection) {
 			delete that.pending[route];
 			connection.onconnect = function() {
-				callback(that, 'onconnect', [connection]);
+				callback(that, 'onconnection', [connection]);
 			};
 		};
 		handshake.onmessage = function(message) {

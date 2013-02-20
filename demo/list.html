@@ -36,7 +36,6 @@
 		console.error(error);
 	});
 	socket.on('truncate', function(list) {
-		clear();
 		append(list);
 	});
 	socket.on('append', function(host) {
@@ -56,15 +55,6 @@
 			urlParts[1] = query.join('&');
 		}
 		return urlParts.join('?');
-	};
-
-	function clear() {
-		hosts = {};
-		var div = document.getElementById('list');
-		var parent = div.parentNode;
-		parent.removeChild(div);
-		div = document.createElement('div');
-		parent.appendChild(div);
 	};
 
 	function append(list) {
