@@ -37,7 +37,7 @@ if(window.location.search) {
 console.log('broker', brokerUrl);
 var peer = new RTCPeer(brokerUrl, {video: false, audio: false});
 var connections = {};
-peer.onconnect = function(connection) {
+peer.onconnection = function(connection) {
   log('connected');
   connections[connection.id] = connection;
   connection.ondisconnect = function() {
