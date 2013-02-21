@@ -1,7 +1,7 @@
 var crypto = require('crypto');
 
 var io = require('socket.io').listen(8080, {
-	'log level': 3
+	'log level': 2
 });
 
 var jsMime = {
@@ -12,12 +12,12 @@ var jsMime = {
 
 io.static.add('/wrtcp.js', {
 	mime: jsMime,
-  file: 'dist/wrtcp.js'
+  file: 'client/wrtcp.js'
 });
 
 io.static.add('/wrtcp.min.js', {
 	mime: jsMime,
-	file: 'dist/wrtcp.min.js'
+	file: 'client/wrtcp.min.js'
 });
 
 function mkguid() {

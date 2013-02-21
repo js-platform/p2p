@@ -3,7 +3,7 @@
   "version": "0.0.1-14",
   "private": true,
   "scripts": {
-    "start": "node broker.js"
+    "start": "node broker/wrtcb.js"
   },
   "dependencies": {
     "lodash": "~1.0.1",
