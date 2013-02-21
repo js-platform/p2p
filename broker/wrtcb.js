@@ -63,7 +63,7 @@ io.of('/peer').on('connection', function(socket) {
 	socket.on('disconnect', function() {
 		if(hosts[route]) {
 			var host = hosts[route];
-			removeList(host);
+			changeList('remove', host);
 		}
 		delete hosts[route];
 		delete peers[route];
@@ -89,11 +89,11 @@ io.of('/peer').on('connection', function(socket) {
 		options['route'] = route;
 		if(hosts.hasOwnProperty(route)) {
 			hosts[route].update(options);
+			changeList('update', hosts[route]);
 		} else {
 			hosts[route] = new Host(options);
+			changeList('append', hosts[route]);
 		}
-
-		appendList(hosts[route]);
 
 		callback();
 	});
@@ -107,7 +107,7 @@ io.of('/peer').on('connection', function(socket) {
 		var host = hosts[route];
 		delete hosts[route];
 
-		removeList(host);
+		changeList('remove', host);
 
 		callback();
 	});
@@ -142,25 +142,16 @@ Filter.prototype.test = function test(host) {
 
 var lists = {};
 
-function appendList(host) {
+function changeList(operation, host) {
 	var clients = Object.keys(lists);
 	clients.forEach(function(client) {
 		var filter = lists[client];
 		if(!host['listed'])
 			return;
-		if(filter.test(host))
-			filter.socket.emit('append', host);
-	});
-};
-
-function removeList(host) {
-	var clients = Object.keys(lists);
-	clients.forEach(function(client) {
-		var filter = lists[client];
-		if(!host['listed'])
-			return;
-		if(filter.test(host))
-			filter.socket.emit('remove', host.route);
+		if(filter.test(host)) {
+			var data = operation === 'remove' ? host['route'] : host;
+			filter.socket.emit(operation, data);
+		}
 	});
 };
 

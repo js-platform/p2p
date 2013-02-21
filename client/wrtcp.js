@@ -4156,7 +4156,7 @@ define(['module'], function(module) {
 				return
       this.connectionTimer = null;
       if(false === messageFlag) {
-        console.log('sending ping');
+        // console.log('sending ping');
         control.send('PING');
         this.pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
       } else {
@@ -4219,12 +4219,12 @@ define(['module'], function(module) {
           if(that.connected) {
             var message = event.data;
             if('PING' === message) {
-              console.log('received ping, sending pong');
+              // console.log('received ping, sending pong');
               control.send('PONG');
             } else if('PONG' === message) {
-              console.log('received pong');
+              // console.log('received pong');
             } else if('QUIT' === message) {
-              console.log('received quit');
+              // console.log('received quit');
               that.close();
             }
           }
@@ -4262,12 +4262,12 @@ define(['module'], function(module) {
             if(that.connected) {
               var message = event.data;
               if('PING' === message) {
-                console.log('received ping, sending pong');
+                // console.log('received ping, sending pong');
                 control.send('PONG');
               } else if('PONG' === message) {
-                console.log('received pong');
+                // console.log('received pong');
               } else if('QUIT' === message) {
-                console.log('received quit');
+                // console.log('received quit');
                 that.connected = false;
                 that.close();
               }
