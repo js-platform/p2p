@@ -4328,9 +4328,15 @@ define(['module'], function(module) {
 		this.broker.onreceive = function onreceive(from, message) {
 			var handshake;
 			if(!that.pending.hasOwnProperty(from)) {
+				if(!that.broker.checkState(WebSocketBroker.LISTENING)) {
+					fail(that, 'onerror', 'pending connection but peer is not listening');
+					return;
+				}
+				callback(that, 'onpending', [from]);
 				handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
 				handshake.oncomplete = function(connection) {
 					delete that.pending[from];
+					connection.route = from;
 					connection.onconnect = function() {
 						callback(that, 'onconnection', [connection]);
 					};
@@ -4366,16 +4372,18 @@ define(['module'], function(module) {
 	};
 	Peer.prototype.connect = function connect(route) {
 		if(!this.broker.checkState(WebSocketBroker.ROUTED))
-			return defer(this.queues.connected, this, 'listen', [options]);
+			return defer(this.queues.connected, this, 'connect', [route]);
 
 		var that = this;
 
 		if(this.pending.hasOwnProperty(route))
 			throw new Error('already connecting to this host'); // FIXME: we can handle this better
 
+		callback(that, 'onpending', [route]);
 		var handshake = this.pending[route] = new WebRTCConnectProtocol(this.options);
 		handshake.oncomplete = function(connection) {
 			delete that.pending[route];
+			connection.route = route;
 			connection.onconnect = function() {
 				callback(that, 'onconnection', [connection]);
 			};
