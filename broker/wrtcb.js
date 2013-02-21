@@ -124,7 +124,7 @@ Filter.prototype.test = function test(host) {
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
-		if(metadataFilter['name'] && metadataHost['name']) {
+		if(metadataFilter['name'] && typeof metadataHost['name'] === 'string') {
 			var result;
 			try {
 				result = metadataHost['name'].match(metadataFilter['name']);
