@@ -63,7 +63,7 @@ if(hosting) {
   console.log('hosting');
 
   peer.onroute = function(route) {
-    peer.listen();
+    peer.listen({metadata:{name:'data-demo'}});
     var url = window.location.toString().split('?');
     url[1] = url[1] || '';
     var params = url[1].split('&');
