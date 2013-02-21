@@ -3720,6 +3720,8 @@ define(['module'], function(module) {
 			getUserMedia = navigator.mozGetUserMedia.bind(navigator);
 		else if(navigator.webkitGetUserMedia)
 			getUserMedia = navigator.webkitGetUserMedia.bind(navigator);
+		else
+			throw new Error('getUserMedia not supported');
 	} else {
 		getUserMedia = navigator.getUserMedia.bind(navigator);
 	}
@@ -3763,6 +3765,16 @@ define(['module'], function(module) {
   var UNRELIABLE_CHANNEL_OPTIONS = {
     outOfOrderAllowed: true,
     maxRetransmitNum: 0
+  };
+
+  function PendingConnectionAbortError(message) {
+    this.name = "PendingConnectionAbortError";
+    this.message = (message || "");
+	}
+	PendingConnectionAbortError.prototype = Error.prototype;
+
+  var E = {
+  	PendingConnectionAbortError: PendingConnectionAbortError
   };
 
   function WebSocketBroker(brokerUrl) {
@@ -4057,6 +4069,9 @@ define(['module'], function(module) {
 
 		this.initialize(setRemote);
 	};
+	WebRTCConnectProtocol.prototype.handleAbort = function handleAbort() {
+		fail(this, 'onerror', new Error(E.WebRTCConnectProtocolAbort));
+	};
 	WebRTCConnectProtocol.prototype.process = function process(message) {
 		var that = this;
 
@@ -4082,6 +4097,10 @@ define(['module'], function(module) {
 					'sdp': message['description']
 				};
 				this.handleAnswer(answer);
+				break;
+
+			case 'abort':
+				this.handleAbort();
 				break;
 
 			default:
@@ -4292,6 +4311,18 @@ define(['module'], function(module) {
 		callback(this, 'ondisconnect', []);
 	};
 
+	function PendingConnection(route, incoming) {
+		this.route = route;
+		this.incoming = incoming;
+		this.proceed = true;
+	};
+	PendingConnection.prototype.accept = function accept() {
+		this.proceed = true;
+	};
+	PendingConnection.prototype.reject = function reject() {
+		this.proceed = false;
+	};
+
 	function Peer(brokerUrl, options) {
 		var that = this;
 		this.brokerUrl = brokerUrl;
@@ -4332,11 +4363,16 @@ define(['module'], function(module) {
 					fail(that, 'onerror', 'pending connection but peer is not listening');
 					return;
 				}
-				callback(that, 'onpending', [from]);
+
+				var pendingConnection = new PendingConnection(from, /*incoming*/ true);
+				callback(that, 'onpending', [pendingConnection]);
+				if(!pendingConnection.accept)
+					return;
+
 				handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
 				handshake.oncomplete = function(connection) {
 					delete that.pending[from];
-					connection.route = from;
+					connection['route'] = from;
 					connection.onconnect = function() {
 						callback(that, 'onconnection', [connection]);
 					};
@@ -4346,7 +4382,7 @@ define(['module'], function(module) {
 				};
 				handshake.onerror = function(error) {
 					delete that.pending[from];
-					callback(that, 'onerror', [error])
+					callback(that, 'onerror', [error]);
 				};
 			} else {
 				handshake = that.pending[from];
@@ -4379,11 +4415,15 @@ define(['module'], function(module) {
 		if(this.pending.hasOwnProperty(route))
 			throw new Error('already connecting to this host'); // FIXME: we can handle this better
 
-		callback(that, 'onpending', [route]);
+		var pendingConnection = new PendingConnection(route, /*incoming*/ false);
+		callback(that, 'onpending', [pendingConnection]);
+		if(!pendingConnection.accept)
+			return;
+
 		var handshake = this.pending[route] = new WebRTCConnectProtocol(this.options);
 		handshake.oncomplete = function(connection) {
 			delete that.pending[route];
-			connection.route = route;
+			connection['route'] = route;
 			connection.onconnect = function() {
 				callback(that, 'onconnection', [connection]);
 			};
@@ -4398,6 +4438,7 @@ define(['module'], function(module) {
 
 		handshake.initiate();
 	};
+	Peer.E = E;
 
 	return Peer;
 

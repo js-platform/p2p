@@ -120,17 +120,21 @@ function Filter(socket, options) {
 	this.socket = socket;
 };
 Filter.prototype.test = function test(host) {
-	/*
 	var filter = this.options;
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
 		if(metadataFilter['name'] && metadataHost['name']) {
-			if(!metadataHost['name'].match(metadataFilter['name']))
+			var result;
+			try {
+				result = metadataHost['name'].match(metadataFilter['name']);
+			} catch(e) {
+				return false;
+			}
+			if(!result)
 				return false;
 		}
 	}
-	*/
 
 	return true;
 };
