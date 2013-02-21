@@ -4352,7 +4352,7 @@ define(['module'], function(module) {
 	};
 	Peer.prototype.listen = function listen(options) {
 		if(!this.broker.checkState(WebSocketBroker.ROUTED))
-			defer(this.queues.connected, this, 'listen', [options]);
+			return defer(this.queues.connected, this, 'listen', [options]);
 
 		options = options || {};
 		options['url'] = options['url'] || window.location.toString();
@@ -4366,7 +4366,7 @@ define(['module'], function(module) {
 	};
 	Peer.prototype.connect = function connect(route) {
 		if(!this.broker.checkState(WebSocketBroker.ROUTED))
-			defer(this.queues.connected, this, 'listen', [options]);
+			return defer(this.queues.connected, this, 'listen', [options]);
 
 		var that = this;
 
