@@ -131,12 +131,13 @@ Filter.prototype.test = function test(host) {
 			} catch(e) {
 				return false;
 			}
-			if(!result)
-				return false;
-		}
-	}
 
-	return true;
+			if(result)
+				return true;
+		}
+	} else {
+		return false;
+	}
 };
 
 var lists = {};
