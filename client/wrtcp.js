@@ -3761,20 +3761,29 @@ define(['module'], function(module) {
   var DEFAULT_PING_TIMEOUT = 1 * ONE_SECOND;
   var RELIABLE_CHANNEL_OPTIONS = {
   	// defaults are OK
+  	reliable: false
   };
   var UNRELIABLE_CHANNEL_OPTIONS = {
-    outOfOrderAllowed: true,
-    maxRetransmitNum: 0
+    /*outOfOrderAllowed: true,
+    maxRetransmitNum: 0,*/
+    reliable: false
   };
 
   function PendingConnectionAbortError(message) {
     this.name = "PendingConnectionAbortError";
     this.message = (message || "");
-	}
+	};
 	PendingConnectionAbortError.prototype = Error.prototype;
 
+	function ConnectionFailedError(message) {
+		this.name = "ConnectionFailedError";
+    this.message = (message || "");
+	};
+	ConnectionFailedError.prototype = Error.prototype;
+
   var E = {
-  	PendingConnectionAbortError: PendingConnectionAbortError
+  	PendingConnectionAbortError: PendingConnectionAbortError,
+  	ConnectionFailedError: ConnectionFailedError
   };
 
   function WebSocketBroker(brokerUrl) {
@@ -3902,11 +3911,22 @@ define(['module'], function(module) {
 	var peerConnectionOptions = {
 		'optional': [{ 'RtpDataChannels': true }]
 	};
+	var dataChannels = {
+		'reliable': UNRELIABLE_CHANNEL_OPTIONS,
+		'unreliable': UNRELIABLE_CHANNEL_OPTIONS,
+		'@control': UNRELIABLE_CHANNEL_OPTIONS
+	};
 	var nextDataConnectionPort = 1;
-	function WebRTCConnectProtocol(options) {
+	function RTCConnectProtocol(options) {
+		var that = this;
+		// FIXME: these timeouts should be configurable
+		this.connectionTimeout = 10 * ONE_SECOND;
+		this.pingTimeout = 1 * ONE_SECOND;
+
 		this.onmessage = null;
 		this.oncomplete = null;
 		this.onerror = null;
+
 		this.complete = false;
 		this.options = options;
 		this.options.ports = {
@@ -3917,15 +3937,48 @@ define(['module'], function(module) {
 			local: null,
 			remote: null
 		};
+		this.initiator = false;
 
 		this.peerConnection = null;
+		this.channels = {};
+		this._pending = {};
+
+		this.messageFlag = false;
+		this.connectionTimer = null;
+		this.pingTimer = null;
+
+		this.handleConnectionTimerExpired = function handleConnectionTimerExpired() {
+			if(that.complete)
+				return;
+	    that.connectionTimer = null;
+	    if(false === that.messageFlag) {
+	      callback(that, 'onmessage', {type: 'ping'});
+	      that.pingTimer = window.setTimeout(that.handlePingTimerExpired, that['pingTimeout']);
+	    } else {
+	      that.messageFlag = false;
+	      that.connectionTimer = window.setTimeout(handleConnectionTimerExpired, that['connectionTimeout']);
+	    }
+	  };
+	  this.handlePingTimerExpired = function handlePingTimerExpired() {
+	  	if(that.complete)
+	  		return;
+	    that.pingTimer = null;
+	    if(false === that.messageFlag) {
+	    	fail(that, 'onerror');
+	    } else {
+	      that.messageFlag = false;
+	      that.connectionTimer = window.setTimeout(that.handleConnectionTimerExpired, that['connectionTimeout']);
+	    }
+	  };
 	};
-	WebRTCConnectProtocol.prototype.initialize = function(cb) {
+	RTCConnectProtocol.prototype.initialize = function(cb) {
 		var that = this;
 
 		if(this.peerConnection)
 			return cb();
 
+		// FIXME: peer connection servers should be configurable
+		//this.peerConnection = new RTCPeerConnection({iceServers:[{url:'stun:23.21.150.121'}]}, peerConnectionOptions);
 		this.peerConnection = new RTCPeerConnection(null, peerConnectionOptions);
 		this.peerConnection.onicecandidate = function(event) {
 			var message = {
@@ -3936,7 +3989,10 @@ define(['module'], function(module) {
 		};
 		this.peerConnection.onaddstream = function(event) {
 			that.options.streams['remote'] = event.stream;
-		}
+		};
+		this.peerConnection.onstatechange = function(event) {
+			console.log(event.target.readyState);
+		};
 
 		function createStream(useFake) {
 			useFake = (!useVideo && !useAudio) ? true : useFake;
@@ -3951,6 +4007,7 @@ define(['module'], function(module) {
 				function(stream) {
 					that.peerConnection.addStream(stream);
 					that.options.streams['local'] = stream;
+					that.connectionTimer = window.setTimeout(that.handleConnectionTimerExpired, that['connectionTimeout']);
 					cb();
 				},
 				function(error) {
@@ -3965,8 +4022,33 @@ define(['module'], function(module) {
 
 		createStream();
 	};
-	WebRTCConnectProtocol.prototype.initiate = function initiate() {
+	RTCConnectProtocol.prototype.initiate = function initiate() {
 		var that = this;
+		this.initiator = true;
+
+		function createDataChannels() {
+			console.info('create data channels');
+			var labels = Object.keys(dataChannels);
+			labels.forEach(function(label) {
+				var channel = that._pending[label] = that.peerConnection.createDataChannel(label, dataChannels[label]);
+				channel.binaryType = that.options['binaryType'];
+				channel.onopen = function() {
+					console.log('onopen');
+					that.channels[label] = channel;
+					delete that._pending[label];
+					if(Object.keys(that.channels).length === labels.length) {
+						that.complete = true;
+						console.info('RTCConnectProtocol complete');
+						callback(that, 'oncomplete', []);
+					}
+				};
+				channel.onerror = function(error) {
+					console.error(error);
+					fail(that, 'onerror', error);
+				};
+			});
+			createOffer();
+		};
 
 		function createOffer() {
 			that.peerConnection.createOffer(setLocal,
@@ -3993,15 +4075,16 @@ define(['module'], function(module) {
 			};
 		};
 
-		this.initialize(createOffer);
+		this.initialize(createDataChannels);
 	};
-	WebRTCConnectProtocol.prototype.handleIce = function handleIce(candidate) {
+	RTCConnectProtocol.prototype.handleIce = function handleIce(candidate) {
 		var that = this;
 
 		function setIce() {
-			if(!that.peerConnection.remoteDescription)
+			if(!that.peerConnection.remoteDescription) {
 				return
-
+			}
+			console.log('setIce');
 			that.peerConnection.addIceCandidate(new RTCIceCandidate(candidate),
 				function(error) {
 					fail(that, 'onerror', error);
@@ -4011,8 +4094,34 @@ define(['module'], function(module) {
 
 		this.initialize(setIce);
 	};
-	WebRTCConnectProtocol.prototype.handleOffer = function handleOffer(offer) {
+	RTCConnectProtocol.prototype.handleOffer = function handleOffer(offer) {
 		var that = this;
+
+		function handleDataChannels() {
+			console.info('handle data channels');
+			var labels = Object.keys(dataChannels);
+			that.peerConnection.ondatachannel = function(event) {
+				var channel = event.channel;
+				console.log('ondatachannel');
+				var label = channel.label;
+				that._pending[label] = channel;
+				channel.onopen = function() {
+					console.log('onopen');
+					that.channels[label] = channel;
+					delete that._pending[label];
+					if(Object.keys(that.channels).length === labels.length) {
+						console.info('RTCConnectProtocol complete');
+						that.complete = true;
+						callback(that, 'oncomplete', []);
+					}
+				};
+				channel.onerror = function(error) {
+					console.error(error);
+					fail(that, 'onerror', error);
+				};
+			};
+			setRemote();
+		};
 
 		function setRemote() {
 			that.peerConnection.setRemoteDescription(new RTCSessionDescription(offer), createAnswer,
@@ -4044,14 +4153,17 @@ define(['module'], function(module) {
 					'port': that.options.ports.local
 				};
 				callback(that, 'onmessage', message);
+				/*
+				that.complete = true;
 				var connection = new Connection(that.peerConnection, that.options, false);
 				callback(that, 'oncomplete', [connection]);
+				*/
 			};
 		};
 
-		this.initialize(setRemote);
+		this.initialize(handleDataChannels);
 	};
-	WebRTCConnectProtocol.prototype.handleAnswer = function handleAnswer(answer) {
+	RTCConnectProtocol.prototype.handleAnswer = function handleAnswer(answer) {
 		var that = this;
 
 		function setRemote() {
@@ -4063,22 +4175,31 @@ define(['module'], function(module) {
 		};
 
 		function complete() {
+			/*
+			that.complete = true;
 			var connection = new Connection(that.peerConnection, that.options, true);
 			callback(that, 'oncomplete', [connection]);
+			*/
 		};
 
 		this.initialize(setRemote);
 	};
-	WebRTCConnectProtocol.prototype.handleAbort = function handleAbort() {
-		fail(this, 'onerror', new Error(E.WebRTCConnectProtocolAbort));
+	RTCConnectProtocol.prototype.handleAbort = function handleAbort() {
+		fail(this, 'onerror', new Error(E.RTCConnectProtocolAbort));
 	};
-	WebRTCConnectProtocol.prototype.process = function process(message) {
+	RTCConnectProtocol.prototype.handleDataChannel = function handleDataChannel() {
+
+	};
+	RTCConnectProtocol.prototype.process = function process(message) {
 		var that = this;
 
+		this.messageFlag = true;
 		var type = message['type'];
 		switch(type) {
 			case 'ice':
-				//this.handleIce(JSON.parse(message['candidate']));
+				var candidate = JSON.parse(message['candidate']);
+				if(candidate)
+					this.handleIce(candidate);
 				break;
 
 			case 'offer':
@@ -4103,118 +4224,161 @@ define(['module'], function(module) {
 				this.handleAbort();
 				break;
 
+			case 'ping':
+			  callback(that, 'onmessage', {type: 'pong'});
+			  break;
+
+			case 'pong':
+				break;
+
 			default:
 				fail(this, 'onerror', 'unknown message');
 		}
 	};
 
+	// FIXME: this could use a cleanup
 	var nextConnectionId = 1;
-	function Connection(peerConnection, options, initiate) {
+	function Connection(options, peerConnection, streams, channels) {
 		var that = this;
 		this.id = nextConnectionId ++;
-		this.streams = options.streams;
+		this.streams = streams;
 		this.connected = false;
+		this.messageFlag = false;
 
-		this.onconnect = null;
+		this.onmessage = null;
 		this.ondisconnect = null;
 		this.onerror = null;
 
 		this.peerConnection = peerConnection;
 
 		// DataChannels
-		var reliable = null;
-		var unreliable = null;
-		var control = null;	// for internal use only
+		this.channels = channels;
 
-		this.reliable = {
-			send: null,
-			onmessage: null,
-			_channel: null
-		};
-		this.unreliable = {
-			send: null,
-			onmessage: null,
-			_channel: null
-		};
-		this._control = null;
-
-		var opened = 0;
-		function handleOpen(event) {
-			++ opened;
-			if(3 === opened) {
-				that.connected = true;
-				this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
-				callback(that, 'onconnect', []);
-			}
-		};
-
-		var messageFlag = false;
 		this.connectionTimer = null;
 		this.pingTimer = null;
-		function handleConnectionTimeoutExpired() {
+
+		function handleConnectionTimerExpired() {
 			if(!that.connected)
 				return
       this.connectionTimer = null;
-      if(false === messageFlag) {
-        // console.log('sending ping');
-        control.send('PING');
-        this.pingTimer = window.setTimeout(handlePingTimeoutExpired, options['pingTimeout']);
+      if(false === that.messageFlag) {
+        // control.send('PING');
+        this.pingTimer = window.setTimeout(handlePingTimerExpired, options['pingTimeout']);
       } else {
-        messageFlag = false;
-        this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+        that.messageFlag = false;
+        this.connectionTimer = window.setTimeout(handleConnectionTimerExpired, options['connectionTimeout']);
       }
     };
-    function handlePingTimeoutExpired() {
+    function handlePingTimerExpired() {
     	if(!that.connected)
 				return
       this.pingTimer = null;
-      if(false === messageFlag) {
+      if(false === that.messageFlag) {
       	that.connected = false;
         that.close();
       } else {
-        messageFlag = false;
-        this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
+        that.messageFlag = false;
+        this.connectionTimer = window.setTimeout(handleConnectionTimerExpired, options['connectionTimeout']);
       }
     };
 
-		if(initiate) {
-			this.peerConnection.onconnection = function() {
-				reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
-        unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
-        control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
+    Object.keys(this.channels).forEach(function(label) {
+    	var channel = that.channels[label];
+    	channel.onmessage = function onmessage(message) {
+    		that.messageFlag = true;
+    		callback(that, 'onmessage', [label, message]);
+    	};
+    });
 
-        reliable.binaryType = options['binaryType'];
-        unreliable.binaryType = options['binaryType'];
-        control.bineryType = 'arraybuffer';
+    this.connected = true;
+    // this.connectionTimer = window.setTimeout(handleConnectionTimerExpired, options['connectionTimeout']);
 
-        reliable.onopen = handleOpen;
-        unreliable.onopen = handleOpen;
-        control.onopen = handleOpen;
+/*
+    function createDataChannels(){
+			console.log('createDataChannels');
+			reliable = peerConnection.createDataChannel('reliable', RELIABLE_CHANNEL_OPTIONS);
+      unreliable = peerConnection.createDataChannel('unreliable', UNRELIABLE_CHANNEL_OPTIONS);
+      control = peerConnection.createDataChannel('control', UNRELIABLE_CHANNEL_OPTIONS);
 
+      reliable.binaryType = options['binaryType'];
+      unreliable.binaryType = options['binaryType'];
+      control.bineryType = 'arraybuffer';
+
+      reliable.onopen = handleOpen;
+      unreliable.onopen = handleOpen;
+      control.onopen = handleOpen;
+
+      reliable.onerror = handleError;
+      unreliable.onopen = handleError;
+      control.open = handleError;
+
+      that.reliable.send = function(message) {
+      	reliable.send(message);
+      };
+      that.unreliable.send = function(message) {
+      	unreliable.send(message);
+      };
+
+      that.reliable._channel = reliable;
+      that.unreliable._channel = unreliable;
+      that._control = control;
+
+      reliable.onmessage = function(event) {
+        messageFlag = true;
+        if(that.connected) {
+          callback(that.reliable, 'onmessage', [event]);
+        }
+      };
+      unreliable.onmessage = function(event) {
+        messageFlag = true;
+        if(that.connected) {
+          callback(that.unreliable, 'onmessage', [event]);
+        }
+      };
+      control.onmessage = function(event) {
+        messageFlag = true;
+        if(that.connected) {
+          var message = event.data;
+          if('PING' === message) {
+            // console.log('received ping, sending pong');
+            control.send('PONG');
+          } else if('PONG' === message) {
+            // console.log('received pong');
+          } else if('QUIT' === message) {
+            // console.log('received quit');
+            that.close();
+          }
+        }
+      };
+		};
+
+		function handleDataChannels(channel) {
+			console.log('handleDataChannels');
+			if('reliable' === channel.label) {
+        reliable = that.reliable._channel = channel;
         that.reliable.send = function(message) {
-        	reliable.send(message);
+        	channel.send(message);
         };
-        that.unreliable.send = function(message) {
-        	unreliable.send(message);
-        };
-
-        that.reliable._channel = reliable;
-        that.unreliable._channel = unreliable;
-        that._control = control;
-
-        reliable.onmessage = function(event) {
+        channel.onmessage = function(event) {
           messageFlag = true;
           if(that.connected) {
             callback(that.reliable, 'onmessage', [event]);
           }
         };
-        unreliable.onmessage = function(event) {
+      } else if('unreliable' === channel.label) {
+        unreliable = that.unreliable._channel = channel;
+        that.unreliable.send = function(message) {
+        	channel.send(message);
+        };
+        channel.onmessage = function(event) {
           messageFlag = true;
           if(that.connected) {
             callback(that.unreliable, 'onmessage', [event]);
           }
         };
-        control.onmessage = function(event) {
+      } else if('control' === channel.label) {
+        control = that._control = channel;
+        channel.onmessage = function(event) {
           messageFlag = true;
           if(that.connected) {
             var message = event.data;
@@ -4225,72 +4389,25 @@ define(['module'], function(module) {
               // console.log('received pong');
             } else if('QUIT' === message) {
               // console.log('received quit');
+              that.connected = false;
               that.close();
             }
           }
         };
-			};
-			that.peerConnection.connectDataConnection(options.ports.local, options.ports.remote);
-		} else {
-			this.peerConnection.ondatachannel = function(channel) {
-				if('reliable' === channel.label) {
-          reliable = that.reliable._channel = channel;
-          that.reliable.send = function(message) {
-          	channel.send(message);
-          };
-          channel.onmessage = function(event) {
-            messageFlag = true;
-            if(that.connected) {
-              callback(that.reliable, 'onmessage', [event]);
-            }
-          };
-        } else if('unreliable' === channel.label) {
-          unreliable = that.unreliable._channel = channel;
-          that.unreliable.send = function(message) {
-          	channel.send(message);
-          };
-          channel.onmessage = function(event) {
-            messageFlag = true;
-            if(that.connected) {
-              callback(that.unreliable, 'onmessage', [event]);
-            }
-          };
-        } else if('control' === channel.label) {
-          control = that._control = channel;
-          channel.onmessage = function(event) {
-            messageFlag = true;
-            if(that.connected) {
-              var message = event.data;
-              if('PING' === message) {
-                // console.log('received ping, sending pong');
-                control.send('PONG');
-              } else if('PONG' === message) {
-                // console.log('received pong');
-              } else if('QUIT' === message) {
-                // console.log('received quit');
-                that.connected = false;
-                that.close();
-              }
-            }
-          };
-        } else {
-          return fail(that, 'onerror', 'unknown data channel' + channel.label);
-        }
+      } else {
+        return fail(that, 'onerror', 'unknown data channel' + channel.label);
+      }
 
-        if('reliable' === channel.label || 'unreliable' === channel.label) {
-          channel.binaryType = options['binaryType'];
-        } else if('control' === channel.label) {
-          channel.binaryType = 'arraybuffer';
-        }
+      if('reliable' === channel.label || 'unreliable' === channel.label) {
+        channel.binaryType = options['binaryType'];
+      } else if('control' === channel.label) {
+        channel.binaryType = 'arraybuffer';
+      }
 
-        if(reliable && unreliable && control) {
-          that.connected = true;
-          this.connectionTimer = window.setTimeout(handleConnectionTimeoutExpired, options['connectionTimeout']);
-          callback(that, 'onconnect', []);
-        }
-			};
-			that.peerConnection.connectDataConnection(options.ports.local, options.ports.remote);
-		}
+      if(reliable && unreliable && control)
+      	handleConnect();
+		};
+*/
 	};
 	Connection.prototype.close = function close() {
 		console.log('close connection');
@@ -4309,6 +4426,10 @@ define(['module'], function(module) {
 		}
 		this.peerConnection = null;
 		callback(this, 'ondisconnect', []);
+	};
+	Connection.prototype.send = function send(label, message) {
+		console.log(label, message, this.channels[label]);
+		this.channels[label].send(message);
 	};
 
 	function PendingConnection(route, incoming) {
@@ -4369,13 +4490,12 @@ define(['module'], function(module) {
 				if(!pendingConnection.accept)
 					return;
 
-				handshake = that.pending[from] = new WebRTCConnectProtocol(that.options);
-				handshake.oncomplete = function(connection) {
-					delete that.pending[from];
+				handshake = that.pending[from] = new RTCConnectProtocol(that.options);
+				handshake.oncomplete = function() {
+					var connection = new Connection(that.options, handshake.peerConnection, handshake.streams, handshake.channels);
 					connection['route'] = from;
-					connection.onconnect = function() {
-						callback(that, 'onconnection', [connection]);
-					};
+					delete that.pending[from];
+					callback(that, 'onconnection', [connection]);
 				};
 				handshake.onmessage = function(message) {
 					that.broker.send(from, message);
@@ -4420,13 +4540,12 @@ define(['module'], function(module) {
 		if(!pendingConnection.accept)
 			return;
 
-		var handshake = this.pending[route] = new WebRTCConnectProtocol(this.options);
-		handshake.oncomplete = function(connection) {
-			delete that.pending[route];
+		var handshake = this.pending[route] = new RTCConnectProtocol(this.options);
+		handshake.oncomplete = function() {
+			var connection = new Connection(this.options, handshake.peerConnection, handshake.streams, handshake.channels);
 			connection['route'] = route;
-			connection.onconnect = function() {
-				callback(that, 'onconnection', [connection]);
-			};
+			delete that.pending[route];
+			callback(that, 'onconnection', [connection]);
 		};
 		handshake.onmessage = function(message) {
 			that.broker.send(route, message);

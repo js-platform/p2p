@@ -51,12 +51,15 @@ peer.onconnection = function(connection) {
   //bindStream(connection.streams['local'], localvideo);
   //bindStream(connection.streams['remote'], remotevideo);
 
-  connection.reliable.onmessage = function(msg) {
+  connection.onmessage = function(label, msg) {
     log('<other:' + connection.id + '> ' + msg.data);
   };
 };
 peer.onerror = function(error) {
-  console.error(error.stack);
+  if(error instanceof RTCPeer.E.ConnectionFailedError)
+    console.error('connection failed');
+  else
+    console.error(error);
 };
 
 if(hosting) {
@@ -91,7 +94,7 @@ document.getElementById("chatinput").addEventListener("keyup", function(e) {
 
     var ids = Object.keys(connections);
     ids.forEach(function(id) {
-      connections[id].reliable.send(ci.value);
+      connections[id].send('reliable', ci.value);
     });
 
     ci.value = "";
