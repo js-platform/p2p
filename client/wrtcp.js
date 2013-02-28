@@ -3726,13 +3726,14 @@ define(['module'], function(module) {
 		getUserMedia = navigator.getUserMedia.bind(navigator);
 	}
 
-	var isFirefox = false;
-	var isChrome = false;
-
+	// FIXME: browser detection is gross, but I don't see another way to do this
+	var RTCConnectProtocol;
 	if(window.mozRTCPeerConnection) {
-		isFirefox = true;
+		RTCConnectProtocol = mozRTCConnectProtocol;
 	} else if(window.webkitRTCPeerConnection) {
-		isChrome = true;
+		RTCConnectProtocol = webkitRTCConnectProtocol;
+	} else {
+		throw Error('unable to determine correct connection protocol');
 	}
 
 	function callback(object, method, args) {
@@ -4147,7 +4148,6 @@ define(['module'], function(module) {
 				var label = channel.label;
 				that.channels[label] = channel;
 				if(Object.keys(that.channels).length === labels.length) {
-					console.info('RTCConnectProtocol complete');
 					that.complete = true;
 					callback(that, 'oncomplete', []);
 				}
@@ -4192,7 +4192,6 @@ define(['module'], function(module) {
 					delete that._pending[label];
 					if(Object.keys(that.channels).length === labels.length) {
 						that.complete = true;
-						console.info('RTCConnectProtocol complete');
 						callback(that, 'oncomplete', []);
 					}
 				};
@@ -4214,6 +4213,7 @@ define(['module'], function(module) {
 		};
 		this.channelOptions = {
 			RELIABLE: {
+				// FIXME: reliable channels do not work in chrome yet
 				reliable: false
 			},
 			UNRELIABLE: {
@@ -4238,7 +4238,6 @@ define(['module'], function(module) {
 					delete that._pending[label];
 					if(Object.keys(that.channels).length === labels.length) {
 						that.complete = true;
-						console.info('RTCConnectProtocol complete');
 						callback(that, 'oncomplete', []);
 					}
 				};
@@ -4290,7 +4289,6 @@ define(['module'], function(module) {
 					that.channels[label] = channel;
 					delete that._pending[label];
 					if(Object.keys(that.channels).length === labels.length) {
-						console.info('RTCConnectProtocol complete');
 						that.complete = true;
 						callback(that, 'oncomplete', []);
 					}
@@ -4517,12 +4515,7 @@ define(['module'], function(module) {
 				if(!pendingConnection.accept)
 					return;
 
-				var handshake;
-				if(isChrome) {
-					handshake = that.pending[from] = new webkitRTCConnectProtocol(that.options);
-				} else if(isFirefox) {
-					handshake = that.pending[from] = new mozRTCConnectProtocol(that.options);
-				}
+				var handshake = that.pending[from] = new RTCConnectProtocol(that.options);
 				handshake.oncomplete = function() {
 					var connection = new Connection(that.options, handshake.peerConnection, handshake.streams, handshake.channels);
 					connection['route'] = from;
@@ -4572,12 +4565,7 @@ define(['module'], function(module) {
 		if(!pendingConnection.accept)
 			return;
 
-		var handshake;
-		if(isChrome) {
-			handshake = this.pending[route] = new webkitRTCConnectProtocol(this.options);
-		} else if(isFirefox) {
-			handshake = this.pending[route] = new mozRTCConnectProtocol(this.options);
-		}
+		var handshake = this.pending[route] = new RTCConnectProtocol(this.options);
 		handshake.oncomplete = function() {
 			var connection = new Connection(this.options, handshake.peerConnection, handshake.streams, handshake.channels);
 			connection['route'] = route;
