@@ -56,10 +56,7 @@ peer.onconnection = function(connection) {
   };
 };
 peer.onerror = function(error) {
-  if(error instanceof RTCPeer.E.ConnectionFailedError)
-    console.error('connection failed');
-  else
-    console.error(error);
+  console.error(error);
 };
 
 if(hosting) {
@@ -85,6 +82,7 @@ window.onbeforeunload = function() {
   ids.forEach(function(id) {
     connections[id].close();
   });
+  peer.close();
 };
 
 document.getElementById("chatinput").addEventListener("keyup", function(e) {
