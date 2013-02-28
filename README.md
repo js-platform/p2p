@@ -1,9 +1,22 @@
-# WebRTC Peer-to-Peer
+# WebRTC peer-to-peer
 
 This is a browser JS library that makes it easy to manage RTC peer connections, streams and data channels.
 It's currently used in [emscripten](http://github.com/kripken/emscripten) to provide data transport for the posix sockets implementation.
 
-## Quick Start
+## What it does
+
+* Firefox (nightly) and Chrome (dev/canary) supported
+* Binary transport using arraybuffers
+* Multiple connections
+* Broker service (on nodejitsu), or run your own
+* Connection timeouts
+
+## What it doesn't do (yet!)
+
+* Interoperability between Firefox and Chrome
+* Peer brokering for establishing new connections through existing peer-to-peer
+
+## Quick start
 
 Setting up a peer is easy. The code below will create a new peer and listen for incoming connections.
 The `onconnection` handler is called each time a new connection is ready.
