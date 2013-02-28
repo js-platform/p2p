@@ -3,6 +3,11 @@
 This is a browser JS library that makes it easy to manage RTC peer connections, streams and data channels.
 It's currently used in [emscripten](http://github.com/kripken/emscripten) to provide data transport for the posix sockets implementation.
 
+## Requirements
+
+You will need either Firefox [Nightly](http://nightly.mozilla.org/), or Chrome [Canary](https://www.google.com/intl/en/chrome/browser/canary.html).
+You can also use Chrome [Dev Channel](http://www.chromium.org/getting-involved/dev-channel).
+
 ## What it does
 
 * Firefox (nightly) and Chrome (dev/canary) supported
