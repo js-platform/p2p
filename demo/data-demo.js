@@ -35,7 +35,7 @@ if(window.location.search) {
 }
 
 console.log('broker', brokerUrl);
-var peer = new RTCPeer(brokerUrl, {video: false, audio: false});
+var peer = new Peer(brokerUrl, {video: false, audio: false});
 var connections = {};
 peer.onconnection = function(connection) {
   log('connected');
@@ -61,9 +61,8 @@ peer.onerror = function(error) {
 
 if(hosting) {
   console.log('hosting');
-
+  peer.listen({metadata:{name:'data-demo'}});
   peer.onroute = function(route) {
-    peer.listen({metadata:{name:'data-demo'}});
     var url = window.location.toString().split('?');
     url[1] = url[1] || '';
     var params = url[1].split('&');

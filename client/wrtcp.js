@@ -4439,7 +4439,7 @@ define(['module'], function(module) {
 	Connection.prototype.close = function close() {
 		console.log('close connection');
 		if(this.connected) {
-			this.channels['@control'].send('QUIT');
+			this.channels['@control'].send('quit');
 		}
 		this.connected = false;
 		this.peerConnection.close();
@@ -4594,7 +4594,7 @@ define(['module'], function(module) {
 ? define
 : function (deps, factory) { typeof exports === 'object'
 ? (module.exports = factory())
-: (this.RTCPeer = factory());
+: (this.Peer = factory());
 },
 // Boilerplate for AMD, Node, and browser global
 this

@@ -44,14 +44,14 @@ function Peer(socket) {
 function Host(options) {
 	this.route = options['route'];
 	this.url = options['url'];
-	this.listed = (undefined !== options['listed']) ? options['listed'] : true;
+	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
 	this.metadata = options['metadata'] || {};
 	this.ctime = Date.now();
 	this.mtime = Date.now();
 };
 Host.prototype.update = function update(options) {
 	this.url = options['url'];
-	this.listed = (undefined !== options['listed']) ? options['listed'] : true;
+	this.listed = (undefined !== options['listed']) ? options['listed'] : false;
 	this.metadata = options['metadata'] || {};
 	this.mtime = Date.now();
 };
