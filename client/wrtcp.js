@@ -3926,29 +3926,9 @@ define(['module'], function(module) {
 	};
 	var nextDataConnectionPort = 1;
 	function CommonRTCConnectProtocol() {
-		var that = this;
 		// FIXME: these timeouts should be configurable
 		this.connectionTimeout = 10 * ONE_SECOND;
 		this.pingTimeout = 1 * ONE_SECOND;
-
-		this.onmessage = null;
-		this.oncomplete = null;
-		this.onerror = null;
-
-		this.complete = false;
-		this.ports = {
-			local: nextDataConnectionPort ++,
-			remote: null
-		};
-		this.streams = {
-			local: null,
-			remote: null
-		};
-		this.initiator = false;
-
-		this.peerConnection = null;
-		this.channels = {};
-		this._pending = {};
 	};
 	CommonRTCConnectProtocol.prototype.process = function process(message) {
 		var that = this;
@@ -4058,6 +4038,24 @@ define(['module'], function(module) {
 
 	function mozRTCConnectProtocol(options) {
 		this.options = options;
+		this.onmessage = null;
+		this.oncomplete = null;
+		this.onerror = null;
+
+		this.complete = false;
+		this.ports = {
+			local: nextDataConnectionPort ++,
+			remote: null
+		};
+		this.streams = {
+			local: null,
+			remote: null
+		};
+		this.initiator = false;
+
+		this.peerConnection = null;
+		this.channels = {};
+		this._pending = {};
 		this.connectionServers = null;
 		this.connectionOptions = null;
 		this.channelOptions = {
@@ -4145,8 +4143,11 @@ define(['module'], function(module) {
 		function handleDataChannels() {
 			var labels = Object.keys(dataChannels);
 			that.peerConnection.ondatachannel = function(channel) {
+				if(that.complete)
+					console.log("ondatachannel after complete!");
 				var label = channel.label;
 				that.channels[label] = channel;
+				channel.binaryType = that.options['binaryType'];
 				if(Object.keys(that.channels).length === labels.length) {
 					that.complete = true;
 					callback(that, 'oncomplete', []);
@@ -4207,6 +4208,24 @@ define(['module'], function(module) {
 
 	function webkitRTCConnectProtocol(options) {
 		this.options = options;
+		this.onmessage = null;
+		this.oncomplete = null;
+		this.onerror = null;
+
+		this.complete = false;
+		this.ports = {
+			local: nextDataConnectionPort ++,
+			remote: null
+		};
+		this.streams = {
+			local: null,
+			remote: null
+		};
+		this.initiator = false;
+
+		this.peerConnection = null;
+		this.channels = {};
+		this._pending = {};
 		this.connectionServers = {iceServers:[{url:'stun:23.21.150.121'}]};
 		this.connectionOptions = {
 			'optional': [{ 'RtpDataChannels': true }]
@@ -4512,7 +4531,7 @@ define(['module'], function(module) {
 
 				var pendingConnection = new PendingConnection(from, /*incoming*/ true);
 				callback(that, 'onpending', [pendingConnection]);
-				if(!pendingConnection.accept)
+				if(!pendingConnection['proceed'])
 					return;
 
 				var handshake = that.pending[from] = new RTCConnectProtocol(that.options);
@@ -4562,7 +4581,7 @@ define(['module'], function(module) {
 
 		var pendingConnection = new PendingConnection(route, /*incoming*/ false);
 		callback(that, 'onpending', [pendingConnection]);
-		if(!pendingConnection.accept)
+		if(!pendingConnection['proceed'])
 			return;
 
 		var handshake = this.pending[route] = new RTCConnectProtocol(this.options);

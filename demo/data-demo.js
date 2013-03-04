@@ -36,12 +36,12 @@ if(window.location.search) {
 
 console.log('broker', brokerUrl);
 var peer = new Peer(brokerUrl, {video: false, audio: false});
-var connections = {};
+window.connections = {};
 peer.onconnection = function(connection) {
-  log('connected');
+  log('connected: ' + connection.id);
   connections[connection.id] = connection;
   connection.ondisconnect = function() {
-    log('disconnected');
+    log('disconnected: ' + connection.id);
     delete connections[connection.id];
   };
   connection.onerror = function(error) {
