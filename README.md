@@ -11,7 +11,7 @@ You can also use Chrome [Dev Channel](http://www.chromium.org/getting-involved/d
 ## What it does
 
 * Firefox (nightly) and Chrome (dev/canary) supported
-* Binary transport using arraybuffers
+* Binary transport using arraybuffers (Firefox only!)
 * Multiple connections
 * Broker service (on nodejitsu), or run your own
 * Connection timeouts
