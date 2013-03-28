@@ -1,8 +1,25 @@
 var crypto = require('crypto');
+var fs = require('fs');
+var https = require('https');
 
-var io = require('socket.io').listen(8080, {
+var sslopts = {
+  key: fs.readFileSync('ssl/ssl.key'),
+  cert: fs.readFileSync('ssl/ssl-unified.crt')
+};
+
+sslopts.agent = new https.Agent(sslopts);
+
+function handler(req, res) {
+  res.writeHead(200);
+  res.end("wrtcb");
+};
+var app = require('https').createServer(sslopts, handler)
+
+var io = require('socket.io').listen(app, {
 	'log level': 2
 });
+
+app.listen(8080);
 
 var jsMime = {
   type: 'application/javascript',

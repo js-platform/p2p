@@ -1,5 +1,5 @@
 {
-  "name": "webrtc-broker",
+  "name": "p2p",
   "version": "0.0.1-21",
   "private": true,
   "scripts": {
