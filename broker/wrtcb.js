@@ -138,20 +138,33 @@ function Filter(socket, options) {
 };
 Filter.prototype.test = function test(host) {
 	var filter = this.options;
+	var include = true;
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
+
 		if(metadataFilter['name'] && typeof metadataHost['name'] === 'string') {
 			var result;
 			try {
 				result = metadataHost['name'].match(metadataFilter['name']);
 			} catch(e) {
-				return false;
+				include = false;
 			}
 
-			if(result)
-				return true;
+			// Include by default, nothing to do
 		}
+
+		if(metadataFilter['url'] && typeof metadataHost['url'] === 'string') {
+			var result;
+
+			try {
+				result = metadataHost['url'].match(metadataFilter['url']);
+			} catch(e) {
+				include = false;
+			}
+		}
+
+		return include;
 	} else {
 		return false;
 	}
