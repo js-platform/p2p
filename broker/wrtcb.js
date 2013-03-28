@@ -138,7 +138,7 @@ function Filter(socket, options) {
 };
 Filter.prototype.test = function test(host) {
 	var filter = this.options;
-	var include = true;
+	var exclude = false;
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
@@ -147,11 +147,11 @@ Filter.prototype.test = function test(host) {
 			var result;
 			try {
 				result = metadataHost['name'].match(metadataFilter['name']);
+				if(!result)
+					exclude = true;
 			} catch(e) {
-				include = false;
+				exclude = true;
 			}
-
-			// Include by default, nothing to do
 		}
 
 		if(metadataFilter['url'] && typeof metadataHost['url'] === 'string') {
@@ -159,12 +159,14 @@ Filter.prototype.test = function test(host) {
 
 			try {
 				result = metadataHost['url'].match(metadataFilter['url']);
+				if(!result)
+					exclude = true;
 			} catch(e) {
-				include = false;
+				exclude = true;
 			}
 		}
 
-		return include;
+		return exclude;
 	} else {
 		return false;
 	}
