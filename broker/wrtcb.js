@@ -13,7 +13,7 @@ function handler(req, res) {
   res.writeHead(200);
   res.end("wrtcb");
 };
-var app = require('https').createServer(sslopts, handler)
+var app = require('https').createServer(sslopts, handler);
 
 var io = require('socket.io').listen(app, {
 	'log level': 2
@@ -138,38 +138,34 @@ function Filter(socket, options) {
 };
 Filter.prototype.test = function test(host) {
 	var filter = this.options;
-	var exclude = false;
+	var result;
+
+	if(filter['url'] && typeof host['url'] === 'string') {
+		try {
+			result = host['url'].match(filter['url']);
+			if(!result)
+				return true;
+		} catch(e) {
+			return true;
+		}
+	}
+
 	if(filter['metadata'] && host['metadata']) {
 		var metadataFilter = filter['metadata'];
 		var metadataHost = host['metadata'];
 
 		if(metadataFilter['name'] && typeof metadataHost['name'] === 'string') {
-			var result;
 			try {
 				result = metadataHost['name'].match(metadataFilter['name']);
 				if(!result)
-					exclude = true;
+					return true;
 			} catch(e) {
-				exclude = true;
+				return true;
 			}
 		}
-
-		if(metadataFilter['url'] && typeof metadataHost['url'] === 'string') {
-			var result;
-
-			try {
-				result = metadataHost['url'].match(metadataFilter['url']);
-				if(!result)
-					exclude = true;
-			} catch(e) {
-				exclude = true;
-			}
-		}
-
-		return exclude;
-	} else {
-		return false;
 	}
+
+	return false;
 };
 
 var lists = {};
@@ -180,7 +176,7 @@ function changeList(operation, host) {
 		var filter = lists[client];
 		if(!host['listed'])
 			return;
-		if(filter.test(host)) {
+		if(!filter.test(host)) {
 			var data = operation === 'remove' ? host['route'] : host;
 			filter.socket.emit(operation, data);
 		}
@@ -204,7 +200,7 @@ io.of('/list').on('connection', function(socket) {
 			var host = hosts[hostId];
 			if(!host['listed'])
 				return;
-			if(filter.test(host))
+			if(!filter.test(host))
 				result.push(host);
 		});
 
