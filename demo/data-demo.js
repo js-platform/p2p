@@ -18,7 +18,7 @@ function bindStream(stream, element) {
 };
 
 var brokerSession = null;
-var brokerUrl = 'http://wrtcb.jit.su:80';
+var brokerUrl = 'http://mdsw.ch:8080';
 var hosting = true;
 var options;
 
