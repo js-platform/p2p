@@ -18,7 +18,7 @@ function bindStream(stream, element) {
 };
 
 var brokerSession = null;
-var brokerUrl = 'http://mdsw.ch:8080';
+var brokerUrl = 'https://mdsw.ch:8080';
 var hosting = true;
 var options;
 
@@ -54,6 +54,8 @@ peer.onconnection = function(connection) {
   connection.onmessage = function(label, msg) {
     log('<other:' + connection.id + '> ' + msg.data);
   };
+  var buff = new Uint8Array([1, 2, 3, 4]);
+  connection.send('reliable', buff.buffer);
 };
 peer.onerror = function(error) {
   console.error(error);

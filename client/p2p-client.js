@@ -3838,8 +3838,7 @@ define(['module'], function(module) {
   WebSocketBroker.prototype.connect = function connect() {
     var that = this;
     var socket = io.connect(this.brokerUrl + '/peer', {
-      'sync disconnect on unload': true, // partially fixes 'interrupted while page loading' warning
-      'secure': true
+      'sync disconnect on unload': true // partially fixes 'interrupted while page loading' warning
     });
 
     socket.on('connecting', function onconnecting() {
@@ -4100,6 +4099,7 @@ define(['module'], function(module) {
         var channel = event.channel;
         var label = channel.label;
         that._pending[label] = channel;
+        channel.binaryType = that.options['binaryType'];
         channel.onopen = function() {
           that.channels[label] = channel;
           delete that._pending[label];
