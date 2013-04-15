@@ -3810,9 +3810,9 @@ define(['module'], function(module) {
   };
 
   // States
-  WebSocketBroker.OFFLINE     = 0x00;
-  WebSocketBroker.CONNECTING  = 0x01;
-  WebSocketBroker.CONNECTED   = 0x02;
+  WebSocketBroker.OFFLINE     = 0x01;
+  WebSocketBroker.CONNECTING  = 0x02;
+  WebSocketBroker.CONNECTED   = 0x04;
   // Flags
   WebSocketBroker.ROUTED      = 0x10;
   WebSocketBroker.LISTENING   = 0x20;
@@ -3863,6 +3863,7 @@ define(['module'], function(module) {
     });
 
     socket.on('error', function onerror(error) {
+    	console.error(error);
       fail(that, 'onerror', error);
     });
 
@@ -4364,6 +4365,9 @@ define(['module'], function(module) {
     this.onerror = null;
 
     this.broker = new WebSocketBroker(brokerUrl);
+    this.broker.onerror = function(error) {
+    	fail(that, 'onerror', error);
+    };
     this.pending = {};
 
     this.queues = {

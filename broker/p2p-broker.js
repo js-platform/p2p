@@ -2,24 +2,42 @@ var crypto = require('crypto');
 var fs = require('fs');
 var https = require('https');
 
-var sslopts = {
-  key: fs.readFileSync('ssl/ssl.key'),
-  cert: fs.readFileSync('ssl/ssl-unified.crt')
-};
+var SSL_KEY = 'ssl/ssl.key';
+var SSL_CERT = 'ssl/ssl-unified.crt';
+var PORT = 8080;
 
-sslopts.agent = new https.Agent(sslopts);
+var sslSupported = false;
+if(fs.existsSync(SSL_KEY) && fs.existsSync(SSL_CERT) && fs.statSync(SSL_KEY).isFile() && fs.statSync(SSL_CERT).isFile()) {
+	sslSupported = true;
+}
 
 function handler(req, res) {
   res.writeHead(200);
-  res.end("wrtcb");
+  res.end("p2p");
 };
-var app = require('https').createServer(sslopts, handler);
+
+var app, port;
+if(sslSupported) {
+	var sslopts = {
+	  key: fs.readFileSync(SSL_KEY),
+	  cert: fs.readFileSync(SSL_CERT)
+	};
+	sslopts.agent = new https.Agent(sslopts);
+	app = require('https').createServer(sslopts, handler);
+	port = 8081;
+	console.info('ssl mode enabled');
+} else {
+	app = require('http').createServer(handler);
+	port = 8080;
+	console.info('ssl mode disabled');
+}
+console.info('listening on port', port);
 
 var io = require('socket.io').listen(app, {
 	'log level': 2
 });
 
-app.listen(8080);
+app.listen(port);
 
 var jsMime = {
   type: 'application/javascript',
@@ -27,15 +45,17 @@ var jsMime = {
   gzip: true
 };
 
-io.static.add('/wrtcp.js', {
+io.static.add('/p2p-client.js', {
 	mime: jsMime,
-  file: 'client/wrtcp.js'
+  file: 'client/p2p-client.js'
 });
 
-io.static.add('/wrtcp.min.js', {
+/*
+io.static.add('/p2p-client.min.js', {
 	mime: jsMime,
-	file: 'client/wrtcp.min.js'
+	file: 'client/p2p-client.min.js'
 });
+*/
 
 function mkguid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
