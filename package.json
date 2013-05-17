@@ -3,7 +3,7 @@
   "version": "0.0.1-21",
   "private": true,
   "scripts": {
-    "start": "node broker/wrtcb.js"
+    "start": "node broker/p2p-broker.js"
   },
   "dependencies": {
     "lodash": "~1.0.1",
