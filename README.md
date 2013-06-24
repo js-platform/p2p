@@ -94,5 +94,5 @@ peer.connect(route);
 ## Demo
 
 There are some files in the `demo` directory that offer an example. 
-You can load it [here](http://js-platform.github.com/p2p/demo/data-demo.html) and open the `connect` URL in another window.
+You can load it [here](http://js-platform.github.com/p2p/examples/data-demo.html) and open the `connect` URL in another window.
 For this example, the `route` is added to the URL query string so that the other peer can parse it and connect when the page loads, so all you need to share is the URL.
