@@ -5,12 +5,11 @@ It's currently used in [emscripten](http://github.com/kripken/emscripten) to pro
 
 ## Requirements
 
-You will need either Firefox [Nightly](http://nightly.mozilla.org/), or Chrome [Canary](https://www.google.com/intl/en/chrome/browser/canary.html).
-You can also use Chrome [Dev Channel](http://www.chromium.org/getting-involved/dev-channel).
+You will need either Firefox, or Chrome.
 
 ## What it does
 
-* Firefox (nightly) and Chrome (dev/canary) supported
+* Firefox and Chrome supported
 * Binary transport using arraybuffers (Firefox only!)
 * Multiple connections
 * Broker service (on nodejitsu), or run your own
@@ -18,7 +17,6 @@ You can also use Chrome [Dev Channel](http://www.chromium.org/getting-involved/d
 
 ## What it doesn't do (yet!)
 
-* Interoperability between Firefox and Chrome
 * Peer brokering for establishing new connections through existing peer-to-peer
 
 ## Quick start
@@ -29,6 +27,7 @@ The `onconnection` handler is called each time a new connection is ready.
 ````javascript
 // Create a new Peer
 var peer = new Peer(
+  //XXX: this broker is down, need to stand one up!
   'http://webrtcb.jit.su:80', // You can use this broker if you don't want to set one up
   {
     binaryType: 'arraybuffer',

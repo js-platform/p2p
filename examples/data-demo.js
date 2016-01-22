@@ -18,7 +18,7 @@ function bindStream(stream, element) {
 };
 
 var brokerSession = null;
-var brokerUrl = 'https://mdsw.ch:8080';
+var brokerUrl = 'http://localhost:8080';
 var hosting = true;
 var options;
 
