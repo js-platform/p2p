@@ -28,7 +28,7 @@ if(sslSupported) {
 	console.info('ssl mode enabled');
 } else {
 	app = require('http').createServer(handler);
-	port = 8080;
+	port = process.env.PORT || 8080;
 	console.info('ssl mode disabled');
 }
 console.info('listening on port', port);
