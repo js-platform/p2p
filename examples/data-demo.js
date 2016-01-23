@@ -18,7 +18,7 @@ function bindStream(stream, element) {
 };
 
 var brokerSession = null;
-var brokerUrl = 'http://localhost:8080';
+var brokerUrl = 'https://webrtc-p2p-broker.herokuapp.com/';
 var hosting = true;
 var options;
 
