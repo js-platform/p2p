@@ -27,7 +27,7 @@ The `onconnection` handler is called each time a new connection is ready.
 ````javascript
 // Create a new Peer
 var peer = new Peer(
-  'https://webrtc-p2p-broker.herokuapp.com', // You can use this broker if you don't want to set one up
+  'wss://webrtc-p2p-broker.herokuapp.com', // You can use this broker if you don't want to set one up
   {
     binaryType: 'arraybuffer',
     video: false,
