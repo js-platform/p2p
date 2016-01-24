@@ -1,6 +1,6 @@
 {
   "name": "p2p",
-  "version": "0.0.1-22",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "start": "node broker/p2p-broker.js",
@@ -10,7 +10,7 @@
   "dependencies": {
     "lodash": "~1.0.1",
     "forever": "~0.10.0",
-    "socket.io": "~0.9.13",
+    "ws": "~1.0.1",
     "uglify-js": "~2.2.5",
     "winser": "~0.1.3"
   },

@@ -1,68 +1,10 @@
 var crypto = require('crypto');
 var fs = require('fs');
-var https = require('https');
+var WebSocketServer = require('ws').Server;
 
-var SSL_KEY = 'ssl/ssl.key';
-var SSL_CERT = 'ssl/ssl-unified.crt';
-var PORT = 8080;
-
-var sslSupported = false;
-if(fs.existsSync(SSL_KEY) && fs.existsSync(SSL_CERT) && fs.statSync(SSL_KEY).isFile() && fs.statSync(SSL_CERT).isFile()) {
-	sslSupported = true;
-}
-
-function handler(req, res) {
-  res.writeHead(200);
-  res.end("p2p");
-};
-
-var app, port;
-if(sslSupported) {
-	var sslopts = {
-	  key: fs.readFileSync(SSL_KEY),
-	  cert: fs.readFileSync(SSL_CERT)
-	};
-	sslopts.agent = new https.Agent(sslopts);
-	app = require('https').createServer(sslopts, handler);
-	port = 8081;
-	console.info('ssl mode enabled');
-} else {
-	app = require('http').createServer(handler);
-	port = process.env.PORT || 8080;
-	console.info('ssl mode disabled');
-}
+var port = process.env.PORT || 8080;
+var wss = new WebSocketServer({ port: port });
 console.info('listening on port', port);
-
-var io = require('socket.io').listen(app, {
-	'log level': 2
-});
-
-app.listen(port);
-
-var jsMime = {
-  type: 'application/javascript',
-  encoding: 'utf8',
-  gzip: true
-};
-
-io.static.add('/p2p-client.js', {
-	mime: jsMime,
-  file: 'client/p2p-client.js'
-});
-
-/*
-io.static.add('/p2p-client.min.js', {
-	mime: jsMime,
-	file: 'client/p2p-client.min.js'
-});
-*/
-
-function mkguid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-    return v.toString(16);
-  }).toUpperCase();
-};
 
 var peers = {};
 var hosts = {};
@@ -93,63 +35,78 @@ Host.prototype.update = function update(options) {
 	this.mtime = Date.now();
 };
 
-io.of('/peer').on('connection', function(socket) {
-	var route = crypto.createHash('md5').update(socket['id']).digest('hex');
-	socket.emit('route', route);
+function emit(ws, type, data) {
+  ws.send(JSON.stringify({type: type, data: data}));
+}
 
-	socket.on('disconnect', function() {
-		if(hosts[route]) {
-			var host = hosts[route];
-			changeList('remove', host);
-		}
-		delete hosts[route];
-		delete peers[route];
-	});
+wss.on('connection', function connection(ws) {
+  var route = crypto.createHash('md5').update(crypto.randomBytes(64)).digest('hex');
+  emit(ws, 'route', route);
 
-	socket.on('send', function(message, callback) {
-		var to = message['to'];
+  ws.on('close', function() {
+    if(hosts[route]) {
+      var host = hosts[route];
+      changeList('remove', host);
+    }
+    delete hosts[route];
+    delete peers[route];
+  });
 
-		if(!peers.hasOwnProperty(to)) {
-			callback({'error': E.NOROUTE});
-			return;
-		}
+  function onsend(message) {
+    var to = message['to'];
 
-		var from = route;
-		var data = message['data'];
-		peers[to].emit('receive', {
-			'from': from,
-			'data': data
-		});
-	});
+    if(!peers.hasOwnProperty(to)) {
+      emit(ws, 'send_response', {'error': E.NOROUTE});
+      return;
+    }
 
-	socket.on('listen', function(options, callback) {
-		options['route'] = route;
-		if(hosts.hasOwnProperty(route)) {
-			hosts[route].update(options);
-			changeList('update', hosts[route]);
-		} else {
-			hosts[route] = new Host(options);
-			changeList('append', hosts[route]);
-		}
+    var from = route;
+    var data = message['data'];
+    emit(peers[to], 'receive', {
+      'from': from,
+      'data': data
+    });
+  }
 
-		callback();
-	});
+  function onlisten(options) {
+    options['route'] = route;
+    if(hosts.hasOwnProperty(route)) {
+      hosts[route].update(options);
+      changeList('update', hosts[route]);
+    } else {
+      hosts[route] = new Host(options);
+      changeList('append', hosts[route]);
+    }
 
-	socket.on('ignore', function(message, callback) {
-		if(!hosts.hasOwnProperty(route)) {
-			callback({'error': E.ISNOTHOST});
-			return;
-		}
+    emit(ws, 'listen_response', null);
+  }
 
-		var host = hosts[route];
-		delete hosts[route];
+  function onignore(message) {
+    if(!hosts.hasOwnProperty(route)) {
+      emit(ws, 'ignore_response', {'error': E.ISNOTHOST});
+      return;
+    }
 
-		changeList('remove', host);
+    var host = hosts[route];
+    delete hosts[route];
 
-		callback();
-	});
+    changeList('remove', host);
 
-	peers[route] = socket;
+    emit(ws, 'ignore_response', null);
+  }
+
+  ws.on('message', function incoming(message) {
+    var data = JSON.parse(message);
+    if (data.type == 'send') {
+      onsend(data.data);
+    } else if (data.type == 'listen') {
+      onlisten(data.data);
+    } else if (data.type == 'ignore') {
+      onignore(data.data);
+    }
+  });
+
+  peers[route] = ws;
 });
 
 function Filter(socket, options) {
@@ -198,11 +155,11 @@ function changeList(operation, host) {
 			return;
 		if(!filter.test(host)) {
 			var data = operation === 'remove' ? host['route'] : host;
-			filter.socket.emit(operation, data);
+			emit(filter.socket, operation, data);
 		}
 	});
 };
-
+/*
 io.of('/list').on('connection', function(socket) {
 	var id = socket['id'];
 
@@ -229,3 +186,4 @@ io.of('/list').on('connection', function(socket) {
 		socket.emit('truncate', result);
 	});
 });
+*/
