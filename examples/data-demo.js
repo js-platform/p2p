@@ -18,7 +18,8 @@ function bindStream(stream, element) {
 };
 
 var brokerSession = null;
-var brokerUrl = 'https://mdsw.ch:8080';
+var brokerUrl = 'wss://webrtc-p2p-broker.herokuapp.com/';
+//var brokerUrl = 'ws://localhost:8080';
 var hosting = true;
 var options;
 
@@ -67,6 +68,7 @@ if(hosting) {
   console.log('hosting');
   peer.listen({metadata:{name:'data-demo'}});
   peer.onroute = function(route) {
+    console.log('route: ' + route);
     var url = window.location.toString().split('?');
     url[1] = url[1] || '';
     var params = url[1].split('&');

@@ -5,20 +5,18 @@ It's currently used in [emscripten](http://github.com/kripken/emscripten) to pro
 
 ## Requirements
 
-You will need either Firefox [Nightly](http://nightly.mozilla.org/), or Chrome [Canary](https://www.google.com/intl/en/chrome/browser/canary.html).
-You can also use Chrome [Dev Channel](http://www.chromium.org/getting-involved/dev-channel).
+You will need either Firefox, or Chrome.
 
 ## What it does
 
-* Firefox (nightly) and Chrome (dev/canary) supported
+* Firefox and Chrome supported
 * Binary transport using arraybuffers (Firefox only!)
 * Multiple connections
-* Broker service (on nodejitsu), or run your own
+* Broker service (on heroku), or run your own
 * Connection timeouts
 
 ## What it doesn't do (yet!)
 
-* Interoperability between Firefox and Chrome
 * Peer brokering for establishing new connections through existing peer-to-peer
 
 ## Quick start
@@ -29,7 +27,7 @@ The `onconnection` handler is called each time a new connection is ready.
 ````javascript
 // Create a new Peer
 var peer = new Peer(
-  'http://webrtcb.jit.su:80', // You can use this broker if you don't want to set one up
+  'wss://webrtc-p2p-broker.herokuapp.com', // You can use this broker if you don't want to set one up
   {
     binaryType: 'arraybuffer',
     video: false,
@@ -50,24 +48,24 @@ peer.onconnection = function(connection) {
   connection.ondisconnect = function(reason) {
     delete connections[connection.id];
   };
-  
+
   connection.onerror = function(error) {
     console.error(error);
   };
-  
+
   // Handle messages from this channel
   // The label will be 'reliable' or 'unreliable', depending on how it was received
   connection.onmessage = function(label, message) {
     console.log(label, message);
   };
-  
+
   // Sends a message to the other peer using the reliable data channel
-  connection.send('reliable', 'hi!'); 
-  
+  connection.send('reliable', 'hi!');
+
   // The connection exposes the underlying media streams
   // You can attach them to DOM elements to get video/audio, if available
   console.log(connection.streams.local, connection.streams.remote);
-  
+
   // Closes the connection
   // This will cause `ondisconnect` to fire
   connection.close();
@@ -93,6 +91,6 @@ peer.connect(route);
 
 ## Demo
 
-There are some files in the `demo` directory that offer an example. 
+There are some files in the `demo` directory that offer an example.
 You can load it [here](http://js-platform.github.com/p2p/examples/data-demo.html) and open the `connect` URL in another window.
 For this example, the `route` is added to the URL query string so that the other peer can parse it and connect when the page loads, so all you need to share is the URL.
